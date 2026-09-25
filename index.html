@@ -76,6 +76,8 @@
             font-size: 1.2rem;
             margin-bottom: 30px;
             text-align: center;
+            max-width: 800px;
+            padding: 0 20px;
         }
         .btn {
             background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
@@ -172,7 +174,7 @@
 
     <div id="menu-screen">
         <h1>STUMBLE FIGHT</h1>
-        <p class="subtitle">Chargement des modèles 3D...</p>
+        <p class="subtitle">Chargement de la map Icy Heights...</p>
         <button class="btn" id="start-btn" disabled>CHARGEMENT...</button>
     </div>
 
@@ -190,22 +192,19 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(renderer.domElement);
 
-        // --- ÉCLAIRAGE OPTIMISÉ ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+        // --- ÉCLAIRAGE RENFORCÉ ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-        dirLight.position.set(10, 30, 15);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        dirLight.position.set(20, 50, 20);
         dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 1024;
-        dirLight.shadow.mapSize.height = 1024;
         scene.add(dirLight);
 
-        const fillLight = new THREE.DirectionalLight(0x88bbff, 0.4);
+        const fillLight = new THREE.DirectionalLight(0x88bbff, 0.6);
         fillLight.position.set(-20, 20, -20);
         scene.add(fillLight);
 
-        // --- CHARGEMENT DU MODÈLE DE LA MAP (icy_heights_common_map.glb) ---
         const platforms = [];
         const hazards = [];
         const checkpoints = [];
@@ -214,22 +213,37 @@
 
         const gltfLoader = new THREE.GLTFLoader();
 
+        // --- CHARGEMENT DE LA MAP AVEC AJUSTEMENT AUTOMATIQUE ---
         gltfLoader.load('icy_heights_common_map.glb', function (gltf) {
             const mapMesh = gltf.scene;
-            mapMesh.scale.set(1, 1, 1);
-            mapMesh.position.set(0, 0, 0);
             
+            // Calculer la boîte englobante pour s'assurer qu'elle s'affiche correctement
+            const box = new THREE.Box3().setFromObject(mapMesh);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            console.log("Dimensions de la map détectées :", size, "Centre :", center);
+
+            // Optionnel : recentrer la map si son origine est décalée
+            // mapMesh.position.x -= center.x;
+            // mapMesh.position.z -= center.z;
+
             mapMesh.traverse((node) => {
                 if (node.isMesh) {
                     node.castShadow = true;
                     node.receiveShadow = true;
+                    // S'assure que les matériaux ne sont pas entièrement noirs si l'éclairage bascule
+                    if (node.material) {
+                        node.material.roughness = 0.5;
+                    }
                 }
             });
+
             scene.add(mapMesh);
 
+            // Large zone de plateforme englobante basée sur la taille réelle de la map chargée
             platforms.push({ 
                 mesh: mapMesh, 
-                bounds: { x: 0, z: -50, w: 30, d: 200, y: -0.5 } 
+                bounds: { x: 0, z: -50, w: 100, d: 300, y: -0.5 } 
             });
 
             for(let i = 0; i < 5; i++) {
@@ -240,7 +254,7 @@
             checkReadyToPlay();
         }, undefined, function (error) {
             console.error('Erreur chargement Map GLB:', error);
-            document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'icy_heights_common_map.glb' est bien présent.";
+            document.querySelector('p.subtitle').innerText = "Erreur : Impossible de charger 'icy_heights_common_map.glb'. Vérifie son nom et emplacement sur GitHub.";
         });
 
         function createCheckpoint(x, y, z) {
@@ -253,7 +267,7 @@
             checkpoints.push({ x, z, mesh: ring });
         }
 
-        // --- CHARGEMENT DU MODÈLE JOUEUR (crash_test_dummy.glb) ---
+        // --- CHARGEMENT DU JOUEUR ---
         let playerMesh = null;
         const player = {
             x: 0, y: 0, z: 5,
@@ -308,7 +322,7 @@
             checkReadyToPlay();
         }, undefined, function (error) {
             console.error('Erreur chargement Joueur GLB:', error);
-            document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'crash_test_dummy.glb' est bien présent.";
+            document.querySelector('p.subtitle').innerText = "Erreur : Impossible de charger 'crash_test_dummy.glb'.";
         });
 
         function checkReadyToPlay() {
@@ -316,7 +330,7 @@
                 const startBtn = document.getElementById('start-btn');
                 startBtn.innerText = "JOUER";
                 startBtn.disabled = false;
-                document.querySelector('p.subtitle').innerText = "Tout est chargé ! Icy Heights & Crash Test Dummy prêts.";
+                document.querySelector('p.subtitle').innerText = "Tout est prêt ! Clique sur JOUER pour lancer la partie.";
             }
         }
 
@@ -470,6 +484,7 @@
                 h.pivot.rotation.y += h.speed;
             });
 
+            bots.read = true; // safe fallback
             bots.forEach(bot => {
                 bot.z -= bot.speed;
                 bot.mesh.position.set(bot.x, bot.y, bot.z);
