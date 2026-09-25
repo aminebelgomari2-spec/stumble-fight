@@ -205,7 +205,7 @@
         fillLight.position.set(-20, 20, -20);
         scene.add(fillLight);
 
-        // --- DESIGN DE LA MAP (Icy Heights) ---
+        // --- DESIGN DE LA MAP CODÉE EN DUR (plateformes de secours) ---
         const platforms = [];
         const hazards = [];
         const checkpoints = [];
@@ -263,7 +263,7 @@
         const loader = new THREE.GLTFLoader();
         let playerMesh = null;
         const player = {
-            x: 0, y: 5, z: 10, // Position de départ surélevée pour éviter d'apparaître dans les murs
+            x: 0, y: 5, z: 5, // valeur par défaut tant que la map GLB n'est pas chargée
             vx: 0, vy: 0, vz: 0,
             speed: 0.15,
             isGrounded: false,
@@ -282,6 +282,38 @@
             scene.add(bullet);
             bullets.push({ mesh: bullet, vz: -0.8 });
         }
+
+        // --- CHARGEMENT DE LA MAP "ICY HEIGHTS" (glb) ---
+        let mapMesh = null;
+        let mapReady = false;
+
+        loader.load('icy_heights_common_map.glb', function (gltf) {
+            mapMesh = gltf.scene;
+            mapMesh.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            scene.add(mapMesh);
+
+            // Calcul automatique de la bounding box pour trouver où spawn
+            const box = new THREE.Box3().setFromObject(mapMesh);
+            const center = box.getCenter(new THREE.Vector3());
+            const topY = box.max.y;
+
+            console.log('Map bounding box:', box.min, box.max);
+
+            // On spawn au centre (X/Z) de la map, juste au-dessus du point le plus haut
+            player.x = center.x;
+            player.z = center.z;
+            player.y = topY + 3; // marge de sécurité pour retomber dessus
+
+            mapReady = true;
+        }, undefined, function (error) {
+            console.error('Erreur chargement map GLB:', error);
+            document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'icy_heights_common_map.glb' est bien à la racine.";
+        });
 
         loader.load('crash_test_dummy.glb', function (gltf) {
             playerMesh = gltf.scene;
