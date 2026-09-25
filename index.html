@@ -205,7 +205,7 @@
         fillLight.position.set(-20, 20, -20);
         scene.add(fillLight);
 
-        // --- CHARGEMENT DU MODÈLE DE LA MAP (icy_heights.glb) ---
+        // --- CHARGEMENT DU MODÈLE DE LA MAP (icy_heights_common_map.glb) ---
         const platforms = [];
         const hazards = [];
         const checkpoints = [];
@@ -214,7 +214,7 @@
 
         const gltfLoader = new THREE.GLTFLoader();
 
-        gltfLoader.load('icy_heights.glb', function (gltf) {
+        gltfLoader.load('icy_heights_common_map.glb', function (gltf) {
             const mapMesh = gltf.scene;
             mapMesh.scale.set(1, 1, 1);
             mapMesh.position.set(0, 0, 0);
@@ -227,14 +227,11 @@
             });
             scene.add(mapMesh);
 
-            // Génération d'une hitbox globale ou de plateformes basées sur la bounding box de la map pour la physique
-            // (Si ta map est un bloc unique ou contient des meshs, on adapte la plateforme principale de collision)
             platforms.push({ 
                 mesh: mapMesh, 
                 bounds: { x: 0, z: -50, w: 30, d: 200, y: -0.5 } 
             });
 
-            // Ajout de checkpoints virtuels par défaut le long de la map
             for(let i = 0; i < 5; i++) {
                 createCheckpoint(0, 0, -10 - (i * 30));
             }
@@ -243,7 +240,7 @@
             checkReadyToPlay();
         }, undefined, function (error) {
             console.error('Erreur chargement Map GLB:', error);
-            document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'icy_heights.glb' est bien présent.";
+            document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'icy_heights_common_map.glb' est bien présent.";
         });
 
         function createCheckpoint(x, y, z) {
