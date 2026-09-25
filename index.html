@@ -3,48 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stumble Fight 3D - Test Map</title>
+    <title>Stumble Fight 3D - Icy Heights</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #1a1a2e; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; -webkit-user-select: none; }
-        #canvas-container { width: 100vw; height: 100vh; display: block; }
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; }
-        .hud-top { display: flex; justify-content: space-between; align-items: flex-start; }
-        .hud-card { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); border: 2px solid rgba(255, 255, 255, 0.2); padding: 10px 20px; border-radius: 12px; color: white; font-weight: bold; font-size: 18px; }
-        #menu-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(30,30,60,0.95) 0%, rgba(10,10,20,0.98) 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; z-index: 10; transition: opacity 0.3s ease; }
-        h1 { color: #ffcc00; font-size: 4rem; margin: 0 0 10px 0; text-align: center; }
-        p.subtitle { color: #a0a0c0; font-size: 1.2rem; margin-bottom: 30px; text-align: center; }
-        .btn { background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%); color: white; border: none; padding: 15px 40px; font-size: 1.5rem; font-weight: bold; border-radius: 50px; cursor: pointer; box-shadow: 0 10px 25px rgba(255, 107, 107, 0.5); }
-        #controls { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box; pointer-events: none; }
-        .touch-group { display: flex; gap: 15px; pointer-events: auto; }
-        .control-btn { width: 75px; height: 75px; background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.4); border-radius: 50%; color: white; font-size: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        #virtual-joystick { width: 120px; height: 120px; background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%; position: relative; pointer-events: auto; touch-action: none; }
-        #joystick-knob { width: 50px; height: 50px; background: rgba(255, 255, 255, 0.6); border-radius: 50%; position: absolute; top: 35px; left: 35px; pointer-events: none; }
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1a1a2e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .hud-card {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        #menu-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(30,30,60,0.95) 0%, rgba(10,10,20,0.98) 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+        h1 {
+            color: #ffcc00;
+            font-size: 4rem;
+            margin: 0 0 10px 0;
+            text-shadow: 0 0 20px rgba(255, 204, 0, 0.6), 0 5px 0 #cc9900;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        p.subtitle {
+            color: #a0a0c0;
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(255, 107, 107, 0.5);
+            transition: transform 0.1s, box-shadow 0.1s;
+            margin-top: 10px;
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 40px;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+        .touch-group {
+            display: flex;
+            gap: 15px;
+            pointer-events: auto;
+        }
+        .control-btn {
+            width: 75px;
+            height: 75px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+        #virtual-joystick {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            position: relative;
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #joystick-knob {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            position: absolute;
+            top: 35px;
+            left: 35px;
+            pointer-events: none;
+            transition: transform 0.05s linear;
+        }
     </style>
+    <!-- Three.js et GLTFLoader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
+
     <div id="canvas-container"></div>
+
     <div id="ui-layer">
         <div class="hud-top">
             <div class="hud-card" id="score-hud">Checkpoint : 1 / 5</div>
             <div class="hud-card" id="status-hud">Tirer : Touche F | Dash : Saut en l'air</div>
         </div>
+        
         <div id="controls">
-            <div id="virtual-joystick"><div id="joystick-knob"></div></div>
+            <div id="virtual-joystick">
+                <div id="joystick-knob"></div>
+            </div>
             <div class="touch-group">
                 <div class="control-btn" id="btn-shoot">💥</div>
                 <div class="control-btn" id="btn-jump">⬆️</div>
             </div>
         </div>
     </div>
+
     <div id="menu-screen">
         <h1>STUMBLE FIGHT</h1>
-        <p class="subtitle">Chargement du joueur...</p>
+        <p class="subtitle">Chargement de votre Crash Test Dummy 3D...</p>
         <button class="btn" id="start-btn" disabled>CHARGEMENT...</button>
     </div>
 
     <script>
+        // --- SCÈNE & MOTEUR 3D ---
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x111125);
@@ -54,22 +187,46 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+        // --- ÉCLAIRAGE OPTIMISÉ ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+        scene.add(ambientLight);
+
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
         dirLight.position.set(10, 30, 15);
         dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
         scene.add(dirLight);
 
-        // --- CONSTRUCTION DE LA MAP DE SECOURS (Style Glacé) ---
+        const fillLight = new THREE.DirectionalLight(0x88bbff, 0.4);
+        fillLight.position.set(-20, 20, -20);
+        scene.add(fillLight);
+
+        // --- DESIGN DE LA MAP (Icy Heights) ---
         const platforms = [];
         const hazards = [];
         const checkpoints = [];
 
+        function buildMap() {
+            createPlatform(0, -0.5, 0, 10, 1, 15, 0xaaddff);
+            createCheckpoint(0, 0, -10);
+            createPlatform(0, -0.5, -20, 8, 1, 20, 0x88ccff);
+            createPlatform(0, -0.5, -45, 10, 1, 25, 0x66bbff);
+            createRotator(0, 0, -45);
+            createCheckpoint(0, 0, -60);
+            createPlatform(0, -0.5, -75, 4, 1, 20, 0x7799ff);
+            createPlatform(-3, -0.5, -95, 4, 1, 15, 0x7799ff);
+            createPlatform(3, -0.5, -115, 4, 1, 15, 0x7799ff);
+            createCheckpoint(3, 0, -125);
+            createPlatform(0, -0.5, -145, 12, 1, 20, 0x00aa66);
+        }
+
         function createPlatform(x, y, z, w, h, d, color) {
             const geo = new THREE.BoxGeometry(w, h, d);
-            const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.2, metalness: 0.3 });
+            const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.3, metalness: 0.2 });
             const mesh = new THREE.Mesh(geo, mat);
             mesh.position.set(x, y, z);
             mesh.receiveShadow = true;
@@ -87,49 +244,95 @@
             checkpoints.push({ x, z, mesh: ring });
         }
 
-        // Map de test structurée
-        createPlatform(0, -0.5, 0, 10, 1, 20, 0xaaddff);
-        createCheckpoint(0, 0, -10);
-        createPlatform(0, -0.5, -30, 8, 1, 30, 0x88ccff);
-        createCheckpoint(0, 0, -45);
-        createPlatform(0, -0.5, -70, 12, 1, 25, 0x66bbff);
+        function createRotator(x, y, z) {
+            const pivot = new THREE.Group();
+            pivot.position.set(x, y + 0.5, z);
+            scene.add(pivot);
+            const armGeo = new THREE.BoxGeometry(8, 0.4, 0.8);
+            const armMat = new THREE.MeshStandardMaterial({ color: 0xff3333 });
+            const arm = new THREE.Mesh(armGeo, armMat);
+            arm.position.x = 4;
+            arm.castShadow = true;
+            pivot.add(arm);
+            hazards.push({ pivot, speed: 0.04 });
+        }
 
-        // --- CHARGEMENT DU JOUEUR ---
+        buildMap();
+
+        // --- CHARGEMENT DU MODÈLE GLB JOUEUR & BOTS ---
+        const loader = new THREE.GLTFLoader();
         let playerMesh = null;
-        let playerLoaded = false;
-        const player = { x: 0, y: 0, z: 5, vx: 0, vy: 0, vz: 0, speed: 0.15, isGrounded: false, hasDashed: false, checkpointIndex: 0 };
+        const player = {
+            x: 0, y: 0, z: 5,
+            vx: 0, vy: 0, vz: 0,
+            speed: 0.15,
+            isGrounded: false,
+            hasDashed: false,
+            checkpointIndex: 0
+        };
+
         const bots = [];
         const bullets = [];
 
-        const gltfLoader = new THREE.GLTFLoader();
-        gltfLoader.load('crash_test_dummy.glb', function (gltf) {
+        function shootLaser() {
+            const bulletGeo = new THREE.SphereGeometry(0.2, 8, 8);
+            const bulletMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+            bullet.position.set(player.x, player.y + 1.2, player.z - 0.5);
+            scene.add(bullet);
+            bullets.push({ mesh: bullet, vz: -0.8 });
+        }
+
+        loader.load('crash_test_dummy.glb', function (gltf) {
             playerMesh = gltf.scene;
             playerMesh.scale.set(1, 1, 1);
             playerMesh.traverse((node) => {
                 if (node.isMesh) {
                     node.castShadow = true;
                     node.receiveShadow = true;
+                    if (node.material) {
+                        node.material.roughness = 0.4;
+                        node.material.metalness = 0.1;
+                    }
                 }
             });
             scene.add(playerMesh);
-            playerLoaded = true;
-            document.getElementById('start-btn').innerText = "JOUER";
-            document.getElementById('start-btn').disabled = false;
-            document.querySelector('p.subtitle').innerText = "Prêt à jouer !";
+
+            for (let i = 0; i < 3; i++) {
+                const botClone = gltf.scene.clone();
+                botClone.scale.set(1, 1, 1);
+                scene.add(botClone);
+                bots.push({
+                    mesh: botClone,
+                    x: (i - 1) * 2,
+                    y: 0,
+                    z: - (i * 10),
+                    speed: 0.06 + Math.random() * 0.02
+                });
+            }
+
+            const startBtn = document.getElementById('start-btn');
+            startBtn.innerText = "JOUER";
+            startBtn.disabled = false;
+            document.querySelector('p.subtitle').innerText = "Modèle chargé ! Prêt à jouer sur Icy Heights.";
         }, undefined, function (error) {
-            console.error(error);
-            document.querySelector('p.subtitle').innerText = "Erreur chargement crash_test_dummy.glb";
+            console.error('Erreur chargement GLB:', error);
+            document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'crash_test_dummy.glb' est bien à la racine.";
         });
 
-        // Contrôles basiques pour tester
+        // --- CONTRÔLES CLAVIER & TACTILE ---
         const keys = { forward: false, backward: false, left: false, right: false };
+        let joystickMove = { x: 0, y: 0 };
+
         window.addEventListener('keydown', (e) => {
             if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = true;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = true;
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
-            if (e.code === 'Space') { if (player.isGrounded) { player.vy = 0.22; player.isGrounded = false; } }
+            if (e.code === 'Space') handleJumpOrDash();
+            if (e.code === 'KeyF') shootLaser();
         });
+
         window.addEventListener('keyup', (e) => {
             if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = false;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = false;
@@ -137,25 +340,95 @@
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
         });
 
-        let gameStarted = false;
-        document.getElementById('start-btn').addEventListener('click', () => {
-            if (!playerLoaded) return;
-            document.getElementById('menu-screen').style.opacity = '0';
-            setTimeout(() => { document.getElementById('menu-screen').style.display = 'none'; gameStarted = true; }, 300);
+        function handleJumpOrDash() {
+            if (player.isGrounded) {
+                player.vy = 0.22;
+                player.isGrounded = false;
+                player.hasDashed = false;
+            } else if (!player.hasDashed) {
+                player.vy = 0.05; 
+                player.vz -= 0.6; 
+                player.hasDashed = true;
+            }
+        }
+
+        const joystick = document.getElementById('virtual-joystick');
+        const knob = document.getElementById('joystick-knob');
+        let joystickTouchId = null;
+        let joystickCenter = { x: 0, y: 0 };
+
+        joystick.addEventListener('touchstart', (e) => {
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            const rect = joystick.getBoundingClientRect();
+            joystickCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
         });
 
+        window.addEventListener('touchmove', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === joystickTouchId) {
+                    let dx = touch.clientX - joystickCenter.x;
+                    let dy = touch.clientY - joystickCenter.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const maxDist = 45;
+                    if (dist > maxDist) {
+                        dx = (dx / dist) * maxDist;
+                        dy = (dy / dist) * maxDist;
+                    }
+                    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+                    joystickMove.x = dx / maxDist;
+                    joystickMove.y = dy / maxDist;
+                }
+            }
+        });
+
+        window.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    joystickTouchId = null;
+                    knob.style.transform = `translate(0px, 0px)`;
+                    joystickMove.x = 0;
+                    joystickMove.y = 0;
+                }
+            }
+        });
+
+        document.getElementById('btn-jump').addEventListener('click', handleJumpOrDash);
+        document.getElementById('btn-shoot').addEventListener('click', shootLaser);
+
+        let gameStarted = false;
+        document.getElementById('start-btn').addEventListener('click', () => {
+            if (!playerMesh) return;
+            document.getElementById('menu-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('menu-screen').style.display = 'none';
+                gameStarted = true;
+            }, 300);
+        });
+
+        // --- BOUCLE DE JEU & PHYSIQUE ---
         function updatePhysics() {
             if (!gameStarted || !playerMesh) return;
-            let moveX = 0, moveZ = 0;
+
+            let moveX = joystickMove.x;
+            let moveZ = joystickMove.y;
+
             if (keys.forward) moveZ = -1;
             if (keys.backward) moveZ = 1;
             if (keys.left) moveX = -1;
             if (keys.right) moveX = 1;
 
             player.vx = moveX * player.speed;
-            player.vz = moveZ * player.speed;
+            if (Math.abs(player.vz) < 0.15) {
+                player.vz = moveZ * player.speed;
+            } else {
+                player.vz *= 0.92;
+            }
+
             player.x += player.vx;
             player.z += player.vz;
+
             player.vy -= 0.012;
             player.y += player.vy;
 
@@ -167,15 +440,48 @@
                         player.y = b.y + 0.5;
                         player.vy = 0;
                         player.isGrounded = true;
+                        player.hasDashed = false;
                     }
                 }
             });
 
-            if (player.y < -10) { player.x = 0; player.z = 5; player.y = 2; player.vy = 0; }
+            if (player.y < -10) {
+                const cp = checkpoints[player.checkpointIndex > 0 ? player.checkpointIndex - 1 : 0] || { x: 0, z: 5 };
+                player.x = cp.x;
+                player.z = cp.z + 2;
+                player.y = 2;
+                player.vy = 0;
+            }
+
+            checkpoints.forEach((cp, idx) => {
+                const dist = Math.hypot(player.x - cp.x, player.z - cp.z);
+                if (dist < 1.5 && player.checkpointIndex <= idx) {
+                    player.checkpointIndex = idx + 1;
+                    document.getElementById('score-hud').innerText = `Checkpoint : ${player.checkpointIndex} / ${checkpoints.length}`;
+                }
+            });
 
             playerMesh.position.set(player.x, player.y, player.z);
             if (Math.abs(player.vx) > 0.01 || Math.abs(player.vz) > 0.01) {
                 playerMesh.rotation.y = Math.atan2(player.vx, player.vz);
+            }
+
+            hazards.forEach(h => {
+                h.pivot.rotation.y += h.speed;
+            });
+
+            bots.forEach(bot => {
+                bot.z -= bot.speed;
+                bot.mesh.position.set(bot.x, bot.y, bot.z);
+                if (bot.z < -145) bot.z = 5;
+            });
+
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].mesh.position.z += bullets[i].vz;
+                if (bullets[i].mesh.position.z < -160) {
+                    scene.remove(bullets[i].mesh);
+                    bullets.splice(i, 1);
+                }
             }
 
             camera.position.set(player.x, player.y + 5, player.z + 8);
@@ -188,6 +494,12 @@
             renderer.render(scene, camera);
         }
         animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
