@@ -156,7 +156,7 @@
     <div id="ui-layer">
         <div class="hud-top">
             <div class="hud-card" id="score-hud">Checkpoint : 1 / 5</div>
-            <div class="hud-card" id="status-hud">Modèle : crash_test_dummy.glb</div>
+            <div class="hud-card" id="status-hud">Tirer : Touche F | Dash : Saut en l'air</div>
         </div>
         
         <div id="controls">
@@ -181,7 +181,7 @@
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x111125);
-        scene.fog = new THREE.FogExp2(0x111125, 0.015);
+        scene.fog = new THREE.FogExp2(0x111125, 0.012);
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -190,14 +190,21 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(renderer.domElement);
 
-        // --- ÉCLAIRAGE ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        // --- ÉCLAIRAGE OPTIMISÉ (POUR ÉVITER LES OMBRES TROP SOMBRES) ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.85); // Lumière globale renforcée
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
-        dirLight.position.set(20, 40, 20);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        dirLight.position.set(10, 30, 15);
         dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
         scene.add(dirLight);
+
+        // Lumière secondaire d'accompagnement (contre-jour léger pour bien détacher les persos)
+        const fillLight = new THREE.DirectionalLight(0x88bbff, 0.4);
+        fillLight.position.set(-20, 20, -20);
+        scene.add(fillLight);
 
         // --- DESIGN DE LA MAP ---
         const platforms = [];
@@ -261,10 +268,21 @@
             vx: 0, vy: 0, vz: 0,
             speed: 0.15,
             isGrounded: false,
+            hasDashed: false, // Suivi du dash en l'air
             checkpointIndex: 0
         };
 
         const bots = [];
+        const bullets = [];
+
+        function shootLaser() {
+            const bulletGeo = new THREE.SphereGeometry(0.2, 8, 8);
+            const bulletMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+            bullet.position.set(player.x, player.y + 1.2, player.z - 0.5);
+            scene.add(bullet);
+            bullets.push({ mesh: bullet, vz: -0.8 });
+        }
 
         loader.load('crash_test_dummy.glb', function (gltf) {
             playerMesh = gltf.scene;
@@ -273,6 +291,11 @@
                 if (node.isMesh) {
                     node.castShadow = true;
                     node.receiveShadow = true;
+                    // Remplacement/Amélioration des matériaux si besoin pour éviter qu'ils soient trop sombres
+                    if (node.material) {
+                        node.material.roughness = 0.4;
+                        node.material.metalness = 0.1;
+                    }
                 }
             });
             scene.add(playerMesh);
@@ -294,7 +317,7 @@
             const startBtn = document.getElementById('start-btn');
             startBtn.innerText = "JOUER";
             startBtn.disabled = false;
-            document.querySelector('p.subtitle').innerText = "Modèle chargé avec succès ! Prêt à jouer.";
+            document.querySelector('p.subtitle').innerText = "Modèle chargé ! Éclairage et Dash activés.";
         }, undefined, function (error) {
             console.error('Erreur chargement GLB:', error);
             document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'crash_test_dummy.glb' est bien à la racine.";
@@ -309,7 +332,8 @@
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = true;
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
-            if (e.code === 'Space') triggerJump();
+            if (e.code === 'Space') handleJumpOrDash();
+            if (e.code === 'KeyF') shootLaser(); // Touche F pour tirer sur PC
         });
 
         window.addEventListener('keyup', (e) => {
@@ -319,10 +343,19 @@
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
         });
 
-        function triggerJump() {
+        // Gestion du saut normal OU du Dash si déjà en l'air
+        function handleJumpOrDash() {
             if (player.isGrounded) {
+                // Saut normal
                 player.vy = 0.22;
                 player.isGrounded = false;
+                player.hasDashed = false; // Réinitialise le droit au dash
+            } else if (!player.hasDashed) {
+                // Dash en avant en l'air !
+                player.vy = 0.08 léger rebond vers le haut;
+                player.vy = 0.05; 
+                player.vz -= 0.6; // Propulsion violente vers l'avant (axe Z négatif)
+                player.hasDashed = true; // Un seul dash par saut
             }
         }
 
@@ -368,7 +401,8 @@
             }
         });
 
-        document.getElementById('btn-jump').addEventListener('click', triggerJump);
+        document.getElementById('btn-jump').addEventListener('click', handleJumpOrDash);
+        document.getElementById('btn-shoot').addEventListener('click', shootLaser);
 
         let gameStarted = false;
         document.getElementById('start-btn').addEventListener('click', () => {
@@ -393,7 +427,12 @@
             if (keys.right) moveX = 1;
 
             player.vx = moveX * player.speed;
-            player.vz = moveZ * player.speed;
+            // Si on ne fait pas de dash, on applique le mouvement normal sur Z
+            if (Math.abs(player.vz) < 0.15) {
+                player.vz = moveZ * player.speed;
+            } else {
+                player.vz *= 0.92; // Friction après le dash
+            }
 
             player.x += player.vx;
             player.z += player.vz;
@@ -409,6 +448,7 @@
                         player.y = b.y + 0.5;
                         player.vy = 0;
                         player.isGrounded = true;
+                        player.hasDashed = false;
                     }
                 }
             });
@@ -443,6 +483,15 @@
                 bot.mesh.position.set(bot.x, bot.y, bot.z);
                 if (bot.z < -145) bot.z = 5;
             });
+
+            // Mise à jour des projectiles de tir
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].mesh.position.z += bullets[i].vz;
+                if (bullets[i].mesh.position.z < -160) {
+                    scene.remove(bullets[i].mesh);
+                    bullets.splice(i, 1);
+                }
+            }
 
             camera.position.set(player.x, player.y + 5, player.z + 8);
             camera.lookAt(player.x, player.y + 1, player.z);
