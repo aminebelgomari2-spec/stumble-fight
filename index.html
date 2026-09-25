@@ -295,19 +295,29 @@
                     node.receiveShadow = true;
                 }
             });
+
+            // Le modèle est exporté avec des coordonnées très éloignées de l'origine
+            // (ex: y autour de -1000). On calcule sa bounding box AVANT de l'ajouter
+            // à la scène, puis on recentre le mesh sur (0,0,0) en X/Z et on met
+            // le sommet de la map à y=0, pour que ça coïncide avec le reste du jeu.
+            const rawBox = new THREE.Box3().setFromObject(mapMesh);
+            const rawCenter = rawBox.getCenter(new THREE.Vector3());
+            const rawTopY = rawBox.max.y;
+
+            mapMesh.position.x -= rawCenter.x;
+            mapMesh.position.z -= rawCenter.z;
+            mapMesh.position.y -= rawTopY;
+
             scene.add(mapMesh);
 
-            // Calcul automatique de la bounding box pour trouver où spawn
+            // Bounding box recalculée après recentrage (pour vérif dans la console)
             const box = new THREE.Box3().setFromObject(mapMesh);
-            const center = box.getCenter(new THREE.Vector3());
-            const topY = box.max.y;
+            console.log('Map bounding box (recentrée):', box.min, box.max);
 
-            console.log('Map bounding box:', box.min, box.max);
-
-            // On spawn au centre (X/Z) de la map, juste au-dessus du point le plus haut
-            player.x = center.x;
-            player.z = center.z;
-            player.y = topY + 3; // marge de sécurité pour retomber dessus
+            // On spawn au centre (X/Z) de la map, juste au-dessus du point le plus haut (maintenant proche de y=0)
+            player.x = 0;
+            player.z = 0;
+            player.y = 3; // marge de sécurité pour retomber sur le sommet de la map
 
             mapReady = true;
         }, undefined, function (error) {
