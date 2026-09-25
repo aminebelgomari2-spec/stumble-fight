@@ -263,7 +263,7 @@
         const loader = new THREE.GLTFLoader();
         let playerMesh = null;
         const player = {
-            x: 0, y: 0, z: 5,
+            x: 0, y: 5, z: 10, // Position de départ surélevée pour éviter d'apparaître dans les murs
             vx: 0, vy: 0, vz: 0,
             speed: 0.15,
             isGrounded: false,
