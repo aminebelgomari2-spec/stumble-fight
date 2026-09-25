@@ -310,7 +310,7 @@
 
             const SPAWN_X = 0;
             const SPAWN_Z = 5;   // z où se trouve la plateforme de départ codée en dur
-            const SPAWN_SURFACE_Y = 0; // hauteur du dessus de cette plateforme
+            const SPAWN_SURFACE_Y = -1.5; // hauteur du dessus de cette plateforme (négatif = fait descendre la map)
 
             mapMesh.position.x -= rawCenter.x - SPAWN_X;
             mapMesh.position.y -= rawTopY - SPAWN_SURFACE_Y;
