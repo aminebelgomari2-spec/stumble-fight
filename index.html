@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stumble Fight 3D</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1a1a2e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .hud-card {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        /* Écran de démarrage / Fin */
+        #menu-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(30,30,60,0.95) 0%, rgba(10,10,20,0.98) 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+        h1 {
+            color: #ffcc00;
+            font-size: 4rem;
+            margin: 0 0 10px 0;
+            text-shadow: 0 0 20px rgba(255, 204, 0, 0.6), 0 5px 0 #cc9900;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        p.subtitle {
+            color: #a0a0c0;
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(255, 107, 107, 0.5);
+            transition: transform 0.1s, box-shadow 0.1s;
+            margin-top: 10px;
+        }
+        .btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.5);
+        }
+        /* Contrôles tactiles mobiles */
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 40px;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+        .touch-group {
+            display: flex;
+            gap: 15px;
+            pointer-events: auto;
+        }
+        .control-btn {
+            width: 75px;
+            height: 75px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            cursor: pointer;
+            user-select: none;
+        }
+        .control-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(0.92);
+        }
+        #virtual-joystick {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            position: relative;
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #joystick-knob {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            position: absolute;
+            top: 35px;
+            left: 35px;
+            pointer-events: none;
+            transition: transform 0.05s linear;
+        }
+    </style>
+    <!-- Chargement de Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <!-- Interface Utilisateur & HUD -->
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="hud-card" id="score-hud">Checkpoint : 1 / 5</div>
+            <div class="hud-card" id="status-hud">Mode : Course Obstacles</div>
+        </div>
+        
+        <!-- Contrôles Tactiles (Visibles sur mobile / Utilisables à la souris) -->
+        <div id="controls">
+            <div id="virtual-joystick">
+                <div id="joystick-knob"></div>
+            </div>
+            <div class="touch-group">
+                <div class="control-btn" id="btn-shoot">💥</div>
+                <div class="control-btn" id="btn-jump">⬆️</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu Principal -->
+    <div id="menu-screen">
+        <h1>STUMBLE FIGHT</h1>
+        <p class="subtitle">Survivez aux pièges, éliminez les bots et atteignez l'arrivée !</p>
+        <button class="btn" id="start-btn">JOUER</button>
+    </div>
+
+    <script>
+        // --- CONFIGURATION DE LA SCÈNE & DU MOTEUR 3D ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x111125);
+        scene.fog = new THREE.FogExp2(0x111125, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // --- ÉCLAIRAGE ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        dirLight.position.set(20, 40, 20);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
+
+        // --- GÉNÉRATEUR DU MODÈLE 3D : CRASH TEST DUMMY ---
+        function createDummyModel(primaryColor = 0xff3366, secondaryColor = 0x33ccff) {
+            const group = new THREE.Group();
+
+            const matBody = new THREE.MeshStandardMaterial({ color: primaryColor, roughness: 0.3, metalness: 0.2 });
+            const matJoint = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
+            const matVisor = new THREE.MeshStandardMaterial({ color: secondaryColor, roughness: 0.1, metalness: 0.8 });
+
+            // Torse
+            const torsoGeo = new THREE.BoxGeometry(0.8, 1.0, 0.5);
+            const torso = new THREE.Mesh(torsoGeo, matBody);
+            torso.position.y = 1.1;
+            torso.castShadow = true;
+            group.add(torso);
+
+            // Tête
+            const headGeo = new THREE.SphereGeometry(0.4, 16, 16);
+            const head = new THREE.Mesh(headGeo, matBody);
+            head.position.y = 1.85;
+            head.castShadow = true;
+            group.add(head);
+
+            // Visière / Casque
+            const visorGeo = new THREE.BoxGeometry(0.45, 0.2, 0.35);
+            const visor = new THREE.Mesh(visorGeo, matVisor);
+            visor.position.set(0, 1.85, 0.2);
+            group.add(visor);
+
+            // Bras Gauche & Droit
+            const armGeo = new THREE.CylinderGeometry(0.12, 0.1, 0.8, 8);
+            
+            const leftArm = new THREE.Mesh(armGeo, matBody);
+            leftArm.position.set(-0.55, 1.1, 0);
+            leftArm.castShadow = true;
+            group.add(leftArm);
+
+            const rightArm = new THREE.Mesh(armGeo, matBody);
+            rightArm.position.set(0.55, 1.1, 0);
+            rightArm.castShadow = true;
+            group.add(rightArm);
+
+            // Jambes Gauche & Droite
+            const legGeo = new THREE.CylinderGeometry(0.15, 0.12, 0.9, 8);
+            
+            const leftLeg = new THREE.Mesh(legGeo, matJoint);
+            leftLeg.position.set(-0.25, 0.45, 0);
+            leftLeg.castShadow = true;
+            group.add(leftLeg);
+
+            const rightLeg = new THREE.Mesh(legGeo, matJoint);
+            rightLeg.position.set(0.25, 0.45, 0);
+            rightLeg.castShadow = true;
+            group.add(rightLeg);
+
+            group.scale.set(1.2, 1.2, 1.2);
+            return group;
+        }
+
+        // --- DESIGN DU PARCOURS & OBSTACLES ---
+        const platforms = [];
+        const hazards = [];
+        const checkpoints = [];
+
+        function buildMap() {
+            // Sol de départ
+            createPlatform(0, -0.5, 0, 10, 1, 15, 0x222244);
+            
+            // Checkpoint 1
+            createCheckpoint(0, 0, -10);
+            createPlatform(0, -0.5, -20, 8, 1, 20, 0x2d2d55);
+
+            // Obstacle : Marteaux rotatifs
+            createPlatform(0, -0.5, -45, 10, 1, 25, 0x222244);
+            createRotator(0, 0, -45);
+            createCheckpoint(0, 0, -60);
+
+            // Zone de blocs étroits
+            createPlatform(0, -0.5, -75, 4, 1, 20, 0x3d2d66);
+            createPlatform(-3, -0.5, -95, 4, 1, 15, 0x3d2d66);
+            createPlatform(3, -0.5, -115, 4, 1, 15, 0x3d2d66);
+            createCheckpoint(3, 0, -125);
+
+            // Arrivée finale / Plateforme de victoire
+            createPlatform(0, -0.5, -145, 12, 1, 20, 0x00aa66);
+            createVictoryPad(0, 0.1, -145);
+        }
+
+        function createPlatform(x, y, z, w, h, d, color) {
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            platforms.push({ mesh, bounds: { x, z, w, d, y } });
+        }
+
+        function createCheckpoint(x, y, z) {
+            const ringGeo = new THREE.TorusGeometry(1.5, 0.15, 16, 32);
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00aa88 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.position.set(x, y + 1.5, z);
+            ring.rotation.y = Math.PI / 2;
+            scene.add(ring);
+            checkpoints.push({ x, z, active: false, mesh: ring });
+        }
+
+        function createVictoryPad(x, y, z) {
+            const padGeo = new THREE.CylinderGeometry(3, 3, 0.2, 32);
+            const padMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xaa8800 });
+            const pad = new THREE.Mesh(padGeo, padMat);
+            pad.position.set(x, y, z);
+            scene.add(pad);
+        }
+
+        function createRotator(x, y, z) {
+            const pivot = new THREE.Group();
+            pivot.position.set(x, y + 0.5, z);
+            scene.add(pivot);
+
+            const armGeo = new THREE.BoxGeometry(8, 0.4, 0.8);
+            const armMat = new THREE.MeshStandardMaterial({ color: 0xff3333 });
+            const arm = new THREE.Mesh(armGeo, armMat);
+            arm.position.x = 4;
+            arm.castShadow = true;
+            pivot.add(arm);
+
+            hazards.push({ pivot, speed: 0.04 });
+        }
+
+        buildMap();
+
+        // --- GESTION DU JOUEUR & DES BOTS ---
+        const player = {
+            mesh: createDummyModel(0xff3366, 0x33ccff),
+            x: 0, y: 0, z: 5,
+            vx: 0, vy: 0, vz: 0,
+            speed: 0.15,
+            isGrounded: false,
+            checkpointIndex: 0,
+            spawn: { x: 0, y: 0, z: 5 }
+        };
+        scene.add(player.mesh);
+
+        // Création des bots adversaires intelligents
+        const bots = [];
+        const botColors = [0x33ff66, 0xffff33, 0x9933ff, 0xff9933];
+        for (let i = 0; i < 4; i++) {
+            const botMesh = createDummyModel(botColors[i], 0xffffff);
+            const bot = {
+                mesh: botMesh,
+                x: (i - 1.5) * 2,
+                y: 0,
+                z: 2 - (i * 1.5),
+                speed: 0.08 + Math.random() * 0.04,
+                targetZ: -150,
+                jumpTimer: Math.random() * 100
+            };
+            scene.add(botMesh);
+            bots.push(bot);
+        }
+
+        const bullets = [];
+        function shootLaser() {
+            const bulletGeo = new THREE.SphereGeometry(0.2, 8, 8);
+            const bulletMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+            bullet.position.set(player.x, player.y + 1.2, player.z - 0.5);
+            scene.add(bullet);
+            bullets.push({ mesh: bullet, vz: -0.8 });
+        }
+
+        // --- CONTRÔLES & ENTRÉES ---
+        const keys = { forward: false, backward: false, left: false, right: false, jump: false };
+        let joystickMove = { x: 0, y: 0 };
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = true;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = true;
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
+            if (e.code === 'Space') triggerJump();
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = false;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = false;
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
+        });
+
+        function triggerJump() {
+            if (player.isGrounded) {
+                player.vy = 0.22;
+                player.isGrounded = false;
+            }
+        }
+
+        // Gestion tactile du Joystick virtuel
+        const joystick = document.getElementById('virtual-joystick');
+        const knob = document.getElementById('joystick-knob');
+        let joystickTouchId = null;
+        let joystickCenter = { x: 0, y: 0 };
+
+        joystick.addEventListener('touchstart', (e) => {
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            const rect = joystick.getBoundingClientRect();
+            joystickCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === joystickTouchId) {
+                    let dx = touch.clientX - joystickCenter.x;
+                    let dy = touch.clientY - joystickCenter.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const maxDist = 45;
+                    if (dist > maxDist) {
+                        dx = (dx / dist) * maxDist;
+                        dy = (dy / dist) * maxDist;
+                    }
+                    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+                    joystickMove.x = dx / maxDist;
+                    joystickMove.y = dy / maxDist;
+                }
+            }
+        });
+
+        window.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    joystickTouchId = null;
+                    knob.style.transform = `translate(0px, 0px)`;
+                    joystickMove.x = 0;
+                    joystickMove.y = 0;
+                }
+            }
+        });
+
+        document.getElementById('btn-jump').addEventListener('click', triggerJump);
+        document.getElementById('btn-shoot').addEventListener('click', shootLaser);
+
+        // --- BOUCLE DE JEU & PHYSIQUE ---
+        let gameStarted = false;
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('menu-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('menu-screen.style.display = 'none'; // Corrigé ligne suivante
+                document.getElementById('menu-screen').style.display = 'none';
+                gameStarted = true;
+            }, 300);
+        });
+
+        function updatePhysics() {
+            if (!gameStarted) return;
+
+            // Calcul des déplacements du joueur
+            let moveX = joystickMove.x;
+            let moveZ = joystickMove.y;
+
+            if (keys.forward) moveZ = -1;
+            if (keys.backward) moveZ = 1;
+            if (keys.left) moveX = -1;
+            if (keys.right) moveX = 1;
+
+            player.vx = moveX * player.speed;
+            player.vz = moveZ * player.speed;
+
+            player.x += player.vx;
+            player.z += player.vz;
+
+            // Gravité et Saut
+            player.vy -= 0.012;
+            player.y += player.vy;
+
+            // Collision basique avec les plateformes
+            player.isGrounded = false;
+            platforms.forEach(p => {
+                const b = p.bounds;
+                if (Math.abs(player.x - b.x) < b.w / 2 && Math.abs(player.z - b.z) < b.d / 2) {
+                    if (player.y <= b.y + 0.5 && player.y >= b.y - 0.2 && player.vy <= 0) {
+                        player.y = b.y + 0.5;
+                        player.vy = 0;
+                        player.isGrounded = true;
+                    }
+                }
+            });
+
+            // Chute hors du vide -> Respawn au dernier Checkpoint
+            if (player.y < -10) {
+                const cp = checkpoints[player.checkpointIndex > 0 ? player.checkpointIndex - 1 : 0] || { x: 0, z: 5 };
+                player.x = cp.x;
+                player.z = cp.z + 2;
+                player.y = 2;
+                player.vy = 0;
+            }
+
+            // Gestion des Checkpoints
+            checkpoints.forEach((cp, idx) => {
+                const dist = Math.hypot(player.x - cp.x, player.z - cp.z);
+                if (dist < 1.5 && player.checkpointIndex <= idx) {
+                    player.checkpointIndex = idx + 1;
+                    cp.mesh.material.color.setHex(0xff00ff);
+                    document.getElementById('score-hud').innerText = `Checkpoint : ${player.checkpointIndex} / ${checkpoints.length}`;
+                }
+            });
+
+            // Mise à jour de la position du mesh 3D du joueur
+            player.mesh.position.set(player.x, player.y, player.z);
+            if (Math.abs(player.vx) > 0.01 || Math.abs(player.vz) > 0.01) {
+                player.mesh.rotation.y = Math.atan2(player.vx, player.vz);
+            }
+
+            // --- ANIMATION DES OBSTACLES ---
+            hazards.forEach(h => {
+                h.pivot.rotation.y += h.speed;
+                // Collision marteau avec joueur simplifiée
+                const hammerWorldPos = new THREE.Vector3();
+                h.pivot.children[0].getWorldPosition(hammerWorldPos);
+                if (Math.hypot(player.x - hammerWorldPos.x, player.z - hammerWorldPos.z) < 1.8 && Math.abs(player.y - hammerWorldPos.y) < 1.5) {
+                    player.vy = 0.2;
+                    player.vz += 0.4; // Éjection par le marteau
+                }
+            });
+
+            // --- IA DES BOTS ---
+            bots.forEach(bot => {
+                bot.z -= bot.speed;
+                bot.jumpTimer++;
+                if (bot.jumpTimer > 120 && Math.random() < 0.05) {
+                    bot.y = 0.5; // Petit saut simulé
+                    bot.jumpTimer = 0;
+                }
+                if (bot.y > 0) bot.y -= 0.01;
+                bot.mesh.position.set(bot.x, bot.y, bot.z);
+                
+                // Si le bot atteint la fin
+                if (bot.z < -145) bot.z = 5;
+            });
+
+            // --- MISE À JOUR DES PROJECTILES ---
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].mesh.position.z += bullets[i].vz;
+                if (bullets[i].mesh.position.z < -160) {
+                    scene.remove(bullets[i].mesh);
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // --- SUIVI DE LA CAMÉRA ---
+            camera.position.set(player.x, player.y + 5, player.z + 8);
+            camera.lookAt(player.x, player.y + 1, player.z);
+        }
+
+        // --- BOUCLE DE RENDU ---
+        function animate() {
+            requestAnimationFrame(animate);
+            updatePhysics();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Gestion du redimensionnement de la fenêtre
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
