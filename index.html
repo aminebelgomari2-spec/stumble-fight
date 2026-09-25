@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stumble Fight 3D - Crash Test Dummy</title>
+    <title>Stumble Fight 3D - Icy Heights</title>
     <style>
         body {
             margin: 0;
@@ -172,7 +172,7 @@
 
     <div id="menu-screen">
         <h1>STUMBLE FIGHT</h1>
-        <p class="subtitle">Chargement de votre Crash Test Dummy 3D...</p>
+        <p class="subtitle">Chargement des modèles 3D...</p>
         <button class="btn" id="start-btn" disabled>CHARGEMENT...</button>
     </div>
 
@@ -205,34 +205,46 @@
         fillLight.position.set(-20, 20, -20);
         scene.add(fillLight);
 
-        // --- DESIGN DE LA MAP ---
+        // --- CHARGEMENT DU MODÈLE DE LA MAP (icy_heights.glb) ---
         const platforms = [];
         const hazards = [];
         const checkpoints = [];
+        let mapLoaded = false;
+        let playerLoaded = false;
 
-        function buildMap() {
-            createPlatform(0, -0.5, 0, 10, 1, 15, 0x222244);
-            createCheckpoint(0, 0, -10);
-            createPlatform(0, -0.5, -20, 8, 1, 20, 0x2d2d55);
-            createPlatform(0, -0.5, -45, 10, 1, 25, 0x222244);
-            createRotator(0, 0, -45);
-            createCheckpoint(0, 0, -60);
-            createPlatform(0, -0.5, -75, 4, 1, 20, 0x3d2d66);
-            createPlatform(-3, -0.5, -95, 4, 1, 15, 0x3d2d66);
-            createPlatform(3, -0.5, -115, 4, 1, 15, 0x3d2d66);
-            createCheckpoint(3, 0, -125);
-            createPlatform(0, -0.5, -145, 12, 1, 20, 0x00aa66);
-        }
+        const gltfLoader = new THREE.GLTFLoader();
 
-        function createPlatform(x, y, z, w, h, d, color) {
-            const geo = new THREE.BoxGeometry(w, h, d);
-            const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4 });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(x, y, z);
-            mesh.receiveShadow = true;
-            scene.add(mesh);
-            platforms.push({ mesh, bounds: { x, z, w, d, y } });
-        }
+        gltfLoader.load('icy_heights.glb', function (gltf) {
+            const mapMesh = gltf.scene;
+            mapMesh.scale.set(1, 1, 1);
+            mapMesh.position.set(0, 0, 0);
+            
+            mapMesh.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            scene.add(mapMesh);
+
+            // Génération d'une hitbox globale ou de plateformes basées sur la bounding box de la map pour la physique
+            // (Si ta map est un bloc unique ou contient des meshs, on adapte la plateforme principale de collision)
+            platforms.push({ 
+                mesh: mapMesh, 
+                bounds: { x: 0, z: -50, w: 30, d: 200, y: -0.5 } 
+            });
+
+            // Ajout de checkpoints virtuels par défaut le long de la map
+            for(let i = 0; i < 5; i++) {
+                createCheckpoint(0, 0, -10 - (i * 30));
+            }
+
+            mapLoaded = true;
+            checkReadyToPlay();
+        }, undefined, function (error) {
+            console.error('Erreur chargement Map GLB:', error);
+            document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'icy_heights.glb' est bien présent.";
+        });
 
         function createCheckpoint(x, y, z) {
             const ringGeo = new THREE.TorusGeometry(1.5, 0.15, 16, 32);
@@ -244,23 +256,7 @@
             checkpoints.push({ x, z, mesh: ring });
         }
 
-        function createRotator(x, y, z) {
-            const pivot = new THREE.Group();
-            pivot.position.set(x, y + 0.5, z);
-            scene.add(pivot);
-            const armGeo = new THREE.BoxGeometry(8, 0.4, 0.8);
-            const armMat = new THREE.MeshStandardMaterial({ color: 0xff3333 });
-            const arm = new THREE.Mesh(armGeo, armMat);
-            arm.position.x = 4;
-            arm.castShadow = true;
-            pivot.add(arm);
-            hazards.push({ pivot, speed: 0.04 });
-        }
-
-        buildMap();
-
-        // --- CHARGEMENT DU MODÈLE GLB ---
-        const loader = new THREE.GLTFLoader();
+        // --- CHARGEMENT DU MODÈLE JOUEUR (crash_test_dummy.glb) ---
         let playerMesh = null;
         const player = {
             x: 0, y: 0, z: 5,
@@ -283,7 +279,7 @@
             bullets.push({ mesh: bullet, vz: -0.8 });
         }
 
-        loader.load('crash_test_dummy.glb', function (gltf) {
+        gltfLoader.load('crash_test_dummy.glb', function (gltf) {
             playerMesh = gltf.scene;
             playerMesh.scale.set(1, 1, 1);
             playerMesh.traverse((node) => {
@@ -311,14 +307,21 @@
                 });
             }
 
-            const startBtn = document.getElementById('start-btn');
-            startBtn.innerText = "JOUER";
-            startBtn.disabled = false;
-            document.querySelector('p.subtitle').innerText = "Modèle chargé ! Éclairage et Dash activés.";
+            playerLoaded = true;
+            checkReadyToPlay();
         }, undefined, function (error) {
-            console.error('Erreur chargement GLB:', error);
-            document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'crash_test_dummy.glb' est bien à la racine.";
+            console.error('Erreur chargement Joueur GLB:', error);
+            document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'crash_test_dummy.glb' est bien présent.";
         });
+
+        function checkReadyToPlay() {
+            if (mapLoaded && playerLoaded) {
+                const startBtn = document.getElementById('start-btn');
+                startBtn.innerText = "JOUER";
+                startBtn.disabled = false;
+                document.querySelector('p.subtitle').innerText = "Tout est chargé ! Icy Heights & Crash Test Dummy prêts.";
+            }
+        }
 
         // --- CONTRÔLES ---
         const keys = { forward: false, backward: false, left: false, right: false };
@@ -399,7 +402,7 @@
 
         let gameStarted = false;
         document.getElementById('start-btn').addEventListener('click', () => {
-            if (!playerMesh) return;
+            if (!playerMesh || !mapLoaded) return;
             document.getElementById('menu-screen').style.opacity = '0';
             setTimeout(() => {
                 document.getElementById('menu-screen').style.display = 'none';
