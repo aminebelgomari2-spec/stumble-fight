@@ -253,7 +253,7 @@
 
         buildMap();
 
-        // --- CHARGEMENT DU MODÈLE GLB (CRASH TEST DUMMY) ---
+        // --- CHARGEMENT DU MODÈLE GLB (À LA RACINE) ---
         const loader = new THREE.GLTFLoader();
         let playerMesh = null;
         const player = {
@@ -266,7 +266,7 @@
 
         const bots = [];
 
-        loader.load('models/crash_test_dummy.glb', function (gltf) {
+        loader.load('crash_test_dummy.glb', function (gltf) {
             playerMesh = gltf.scene;
             playerMesh.scale.set(1, 1, 1);
             playerMesh.traverse((node) => {
@@ -277,7 +277,7 @@
             });
             scene.add(playerMesh);
 
-            // Création de quelques bots en dupliquant visuellement le modèle chargé si possible, ou via clone
+            // Création de bots en clonant le modèle
             for (let i = 0; i < 3; i++) {
                 const botClone = gltf.scene.clone();
                 botClone.scale.set(1, 1, 1);
@@ -291,14 +291,13 @@
                 });
             }
 
-            // Activer le bouton de démarrage une fois le modèle chargé
             const startBtn = document.getElementById('start-btn');
             startBtn.innerText = "JOUER";
             startBtn.disabled = false;
             document.querySelector('p.subtitle').innerText = "Modèle chargé avec succès ! Prêt à jouer.";
         }, undefined, function (error) {
             console.error('Erreur chargement GLB:', error);
-            document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'models/crash_test_dummy.glb' existe.";
+            document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'crash_test_dummy.glb' est bien à la racine.";
         });
 
         // --- CONTRÔLES ---
@@ -327,7 +326,6 @@
             }
         }
 
-        // Joystick Tactile
         const joystick = document.getElementById('virtual-joystick');
         const knob = document.getElementById('joystick-knob');
         let joystickTouchId = null;
@@ -371,7 +369,6 @@
         });
 
         document.getElementById('btn-jump').addEventListener('click', triggerJump);
-        document.getElementById('btn-shoot').addEventListener('click', () => {});
 
         let gameStarted = false;
         document.getElementById('start-btn').addEventListener('click', () => {
