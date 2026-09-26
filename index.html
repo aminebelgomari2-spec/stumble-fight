@@ -268,7 +268,7 @@
             ring.position.set(x, y + 1.5, z);
             ring.rotation.y = Math.PI / 2;
             scene.add(ring);
-            checkpoints.push({ x, z, mesh: ring, isFinish });
+            checkpoints.push({ x, y, z, mesh: ring, isFinish });
         }
 
         const COURSE_SPAWN = { x: -29.27, y: -9.26, z: 302.18 };
@@ -287,7 +287,6 @@
         }
         buildRealCourse();
 
-        // --- CRÉATION D'UN OBJET GÉOMÉTRIQUE DE SECOURS SI UN GLB ÉCHOUE ---
         function createFallbackMesh(color = 0xff5555) {
             const group = new THREE.Group();
             const bodyGeo = new THREE.BoxGeometry(0.8, 1.2, 0.5);
@@ -328,18 +327,15 @@
         const skinFiles = ['crash_test_dummy.glb', 'popcorn.glb', 'ryujin.glb', 'water_elemental.glb'];
         let loadedCount = 0;
 
-        // Fonction pour activer l'interface dès que le chargement (ou ses erreurs) est géré
         function checkReadyAndUnlock() {
             loadedCount++;
             if (loadedCount === skinFiles.length) {
-                // S'assurer que tous les skins ont au moins un objet valide (fallback si absent)
                 skinFiles.forEach(file => {
                     if (!loadedGlbScenes[file]) {
                         loadedGlbScenes[file] = createFallbackMesh(file === 'popcorn.glb' ? 0xffaa00 : file === 'ryujin.glb' ? 0x00aaff : 0x00ff88);
                     }
                 });
                 initPlayerModel(selectedSkin);
-                document.getElementById('loading-subtitleinnerText') ? '' : null;
                 const sub = document.getElementById('loading-subtitle');
                 if(sub) sub.innerText = "Choisis ton personnage et ton mode de jeu :";
                 document.getElementById('skin-selector').style.display = 'flex';
@@ -362,7 +358,6 @@
                 });
                 checkReadyAndUnlock();
             }, undefined, (error) => {
-                console.warn('Fichier introuvable ou erreur pour :', file, '. Utilisation du skin de secours.');
                 checkReadyAndUnlock();
             });
         });
@@ -427,7 +422,7 @@
             scene.add(mapMesh);
             mapReady = true;
         }, undefined, function (error) {
-            console.warn('Map GLB non trouvée, utilisation du mode de secours sans collision de map.');
+            console.warn('Map GLB non trouvée.');
         });
 
         function shootLaser() {
@@ -795,7 +790,6 @@
 
             let onPlatform = false;
 
-            // Raycaster collision map
             if (mapReady && mapMesh) {
                 groundRaycaster.ray.origin.set(player.x, player.y + 2.0, player.z);
                 groundRaycaster.ray.direction.copy(DOWN_VECTOR);
@@ -813,11 +807,15 @@
                 }
             }
 
-            // Sol de sécurité universel si la map met du temps à charger ou est absente
+            // Gestion du Respawn au dernier Checkpoint atteint (ou départ si 0)
             if (!onPlatform && player.y < -100) {
-                player.x = COURSE_SPAWN.x;
-                player.y = COURSE_SPAWN.y;
-                player.z = COURSE_SPAWN.z;
+                let respawnTarget = COURSE_SPAWN;
+                if (player.checkpointIndex > 0 && player.checkpointIndex <= COURSE_CHECKPOINTS.length) {
+                    respawnTarget = COURSE_CHECKPOINTS[player.checkpointIndex - 1];
+                }
+                player.x = respawnTarget.x;
+                player.y = respawnTarget.y + 1.0;
+                player.z = respawnTarget.z;
                 player.vy = 0;
                 player.dashVx = 0;
                 player.dashVz = 0;
