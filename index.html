@@ -296,34 +296,28 @@
                 }
             });
 
-            // Le modèle est exporté avec des coordonnées très éloignées de l'origine.
-            // On recentre en X (largeur), on met le sommet à y=0, et on aligne le
-            // BORD DE DÉPART de la map (rawBox.min.z) sur l'endroit où le joueur
-            // spawn normalement dans le jeu codé en dur (autour de x:0, z:5).
+            // Le modèle est exporté avec des coordonnées très éloignées de l'origine
+            // (ex: y autour de -1000). On calcule sa bounding box AVANT de l'ajouter
+            // à la scène, puis on recentre le mesh sur (0,0,0) en X/Z et on met
+            // le sommet de la map à y=0, pour que ça coïncide avec le reste du jeu.
             const rawBox = new THREE.Box3().setFromObject(mapMesh);
             const rawCenter = rawBox.getCenter(new THREE.Vector3());
             const rawTopY = rawBox.max.y;
 
-            // 👉 Si le "début" de la map se trouve en fait à l'autre bout,
-            // remplace "rawBox.min.z" par "rawBox.max.z" ci-dessous.
-            const rawStartZ = rawBox.min.z;
-
-            const SPAWN_X = 0;
-            const SPAWN_Z = 5;   // z où se trouve la plateforme de départ codée en dur
-            const SPAWN_SURFACE_Y = -1.5; // hauteur du dessus de cette plateforme (négatif = fait descendre la map)
-
-            mapMesh.position.x -= rawCenter.x - SPAWN_X;
-            mapMesh.position.y -= rawTopY - SPAWN_SURFACE_Y;
-            mapMesh.position.z -= rawStartZ - SPAWN_Z;
+            mapMesh.position.x -= rawCenter.x;
+            mapMesh.position.z -= rawCenter.z;
+            mapMesh.position.y -= rawTopY;
 
             scene.add(mapMesh);
 
+            // Bounding box recalculée après recentrage (pour vérif dans la console)
             const box = new THREE.Box3().setFromObject(mapMesh);
-            console.log('Map bounding box (alignée sur le spawn):', box.min, box.max);
+            console.log('Map bounding box (recentrée):', box.min, box.max);
 
-            player.x = SPAWN_X;
-            player.z = SPAWN_Z;
-            player.y = SPAWN_SURFACE_Y + 3; // marge de sécurité pour retomber dessus
+            // On spawn au centre (X/Z) de la map, juste au-dessus du point le plus haut (maintenant proche de y=0)
+            player.x = 0;
+            player.z = 0;
+            player.y = 3; // marge de sécurité pour retomber sur le sommet de la map
 
             mapReady = true;
         }, undefined, function (error) {
