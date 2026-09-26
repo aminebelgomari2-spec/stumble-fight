@@ -254,10 +254,13 @@
         fillLight.position.set(-20, 20, -20);
         scene.add(fillLight);
 
-        // --- STRUCTURE DE SECOURS ---
+        // --- STRUCTURE DE SECOURS & TRAMPOLINE ---
         const platforms = [];
         const hazards = [];
         const checkpoints = [];
+
+        // Trampoline invisible aux coordonnées demandées
+        const invisibleTrampoline = { x: -2.76, y: -69.47, z: -250.90, radius: 2.5, force: 0.55 };
 
         function createCheckpoint(x, y, z, isFinish = false) {
             const ringGeo = new THREE.TorusGeometry(1.5, 0.15, 16, 32);
@@ -815,6 +818,14 @@
                         onPlatform = true;
                     }
                 }
+            }
+
+            // Vérification du Trampoline Invisible
+            const distToTrampoline = Math.sqrt((player.x - invisibleTrampoline.x) ** 2 + (player.z - invisibleTrampoline.z) ** 2);
+            if (distToTrampoline < invisibleTrampoline.radius && Math.abs(player.y - invisibleTrampoline.y) < 2.0) {
+                player.vy = invisibleTrampoline.force;
+                player.isGrounded = false;
+                player.hasDashed = false;
             }
 
             // Gestion du Respawn au dernier Checkpoint atteint (ou départ si 0)
