@@ -144,6 +144,26 @@
             pointer-events: none;
             transition: transform 0.05s linear;
         }
+        .skin-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .skin-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .skin-btn.active {
+            background: #ffcc00;
+            color: #1a1a2e;
+            border-color: #ffcc00;
+        }
     </style>
     <!-- Three.js et GLTFLoader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -174,7 +194,14 @@
 
     <div id="menu-screen">
         <h1>STUMBLE FIGHT</h1>
-        <p class="subtitle" id="loading-subtitle">Chargement de votre Crash Test Dummy 3D...</p>
+        <p class="subtitle" id="loading-subtitle">Chargement des personnages...</p>
+
+        <div class="skin-selector" id="skin-selector" style="display:none;">
+            <button class="skin-btn active" data-skin="crash_test_dummy.glb">Dummy</button>
+            <button class="skin-btn" data-skin="popcorn.glb">Popcorn</button>
+            <button class="skin-btn" data-skin="ryujin.glb">Ryujin</button>
+            <button class="skin-btn" data-skin="water_elemental.glb">Water Elemental</button>
+        </div>
 
         <div id="mp-choice" style="display:none; flex-direction:column; align-items:center; gap:12px;">
             <div style="display:flex; gap:15px;">
@@ -267,7 +294,7 @@
             checkpoints.push({ x, z, mesh: ring, isFinish });
         }
 
-        // --- VRAI PARCOURS (coordonnées relevées sur la map avec les outils admin G/H/J) ---
+        // --- VRAI PARCOURS ---
         const COURSE_SPAWN = { x: -29.27, y: -9.26, z: 302.18 };
         const COURSE_CHECKPOINTS = [
             { x: -24.15, y: -16.83, z: 144.98 },
@@ -296,12 +323,14 @@
             hazards.push({ pivot, speed: 0.04 });
         }
 
-        // buildMap(); // Plateformes de secours désactivées : on utilise uniquement le vrai parcours sur la map
         buildRealCourse();
 
-        // --- CHARGEMENT DU MODÈLE GLB JOUEUR & BOTS ---
+        // --- CHARGEMENT DES MODÈLES GLB & GESTION DES SKINS ---
         const loader = new THREE.GLTFLoader();
+        let selectedSkin = 'crash_test_dummy.glb';
+        const loadedGlbScenes = {};
         let playerMesh = null;
+        
         const player = {
             x: COURSE_SPAWN.x, y: COURSE_SPAWN.y, z: COURSE_SPAWN.z,
             vx: 0, vy: 0, vz: 0,
@@ -316,21 +345,83 @@
         const bots = [];
         const bullets = [];
 
-        // Raycaster utilisé chaque frame pour détecter le sol de la map GLB
-        // (les plateformes codées en dur utilisent leur propre système de bounds)
-        const groundRaycaster = new THREE.Raycaster();
-        const DOWN_VECTOR = new THREE.Vector3(0, -1, 0);
+        const skinFiles = ['crash_test_dummy.glb', 'popcorn.glb', 'ryujin.glb', 'water_elemental.glb'];
+        let loadedCount = 0;
 
-        function shootLaser() {
-            const bulletGeo = new THREE.SphereGeometry(0.2, 8, 8);
-            const bulletMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-            const bullet = new THREE.Mesh(bulletGeo, bulletMat);
-            const dirX = Math.sin(player.facingAngle);
-            const dirZ = Math.cos(player.facingAngle);
-            bullet.position.set(player.x + dirX * 0.6, player.y + 1.2, player.z + dirZ * 0.6);
-            scene.add(bullet);
-            bullets.push({ mesh: bullet, vx: dirX * 0.8, vz: dirZ * 0.8, life: 0 });
+        skinFiles.forEach(file => {
+            loader.load(file, (gltf) => {
+                loadedGlbScenes[file] = gltf.scene;
+                gltf.scene.traverse((node) => {
+                    if (node.isMesh) {
+                        node.castShadow = true;
+                        node.receiveShadow = true;
+                        if (node.material) {
+                            node.material.roughness = 0.4;
+                            node.material.metalness = 0.1;
+                        }
+                    }
+                });
+                loadedCount++;
+                if (loadedCount === skinFiles.length) {
+                    initPlayerModel(selectedSkin);
+                    document.getElementById('loading-subtitle').innerText = "Modèles chargés ! Choisis ton personnage et ton mode de jeu :";
+                    document.getElementById('skin-selector').style.display = 'flex';
+                    document.getElementById('mp-choice').style.display = 'flex';
+                }
+            }, undefined, (error) => {
+                console.error('Erreur chargement GLB:', file, error);
+                // Fallback si un skin manque pour ne pas bloquer le jeu
+                loadedCount++;
+                if (loadedCount === skinFiles.length) {
+                    if (!loadedGlbScenes['crash_test_dummy.glb']) {
+                        // Créer un cube par défaut si le dummy manque
+                        const dummyScene = new THREE.Scene();
+                        const cube = new THREE.Mesh(new THREE.BoxGeometry(1,2,1), new THREE.MeshStandardMaterial({color: 0xffffff}));
+                        dummyScene.add(cube);
+                        loadedGlbScenes['crash_test_dummy.glb'] = dummyScene;
+                    }
+                    skinFiles.forEach(f => { if (!loadedGlbScenes[f]) loadedGlbScenes[f] = loadedGlbScenes['crash_test_dummy.glb']; });
+                    initPlayerModel(selectedSkin);
+                    document.getElementById('loading-subtitle').innerText = "Choisis ton personnage et ton mode de jeu :";
+                    document.getElementById('skin-selector').style.display = 'flex';
+                    document.getElementById('mp-choice').style.display = 'flex';
+                }
+            });
+        });
+
+        function initPlayerModel(skinName) {
+            if (playerMesh) scene.remove(playerMesh);
+            const sourceScene = loadedGlbScenes[skinName] || loadedGlbScenes['crash_test_dummy.glb'];
+            playerMesh = sourceScene.clone();
+            playerMesh.scale.set(1, 1, 1);
+            scene.add(playerMesh);
+
+            // Créer les bots s'ils n'existent pas encore
+            if (bots.length === 0) {
+                for (let i = 0; i < 3; i++) {
+                    const botClone = sourceScene.clone();
+                    botClone.scale.set(1, 1, 1);
+                    scene.add(botClone);
+                    bots.push({
+                        mesh: botClone,
+                        x: (i - 1) * 2,
+                        y: 0,
+                        z: - (i * 10),
+                        speed: 0.06 + Math.random() * 0.02
+                    });
+                }
+            }
         }
+
+        // Gestion des boutons de sélection de skin
+        document.querySelectorAll('.skin-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.skin-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                selectedSkin = e.target.getAttribute('data-skin');
+                initPlayerModel(selectedSkin);
+            });
+        });
 
         // --- CHARGEMENT DE LA MAP "ICY HEIGHTS" (glb) ---
         let mapMesh = null;
@@ -345,10 +436,6 @@
                 }
             });
 
-            // Le modèle est exporté avec des coordonnées très éloignées de l'origine
-            // (ex: y autour de -1000). On calcule sa bounding box AVANT de l'ajouter
-            // à la scène, puis on recentre le mesh sur (0,0,0) en X/Z et on met
-            // le sommet de la map à y=0, pour que ça coïncide avec le reste du jeu.
             const rawBox = new THREE.Box3().setFromObject(mapMesh);
             const rawCenter = rawBox.getCenter(new THREE.Vector3());
             const rawTopY = rawBox.max.y;
@@ -357,68 +444,34 @@
             mapMesh.position.z -= rawCenter.z;
             mapMesh.position.y -= rawTopY;
 
-            // Décalage supplémentaire pour pousser la map vers la gauche et un peu vers le haut.
             const MAP_EXTRA_OFFSET_X = -25;
             const MAP_EXTRA_OFFSET_Y = 20;
             mapMesh.position.x += MAP_EXTRA_OFFSET_X;
             mapMesh.position.y += MAP_EXTRA_OFFSET_Y;
 
             scene.add(mapMesh);
-
-            // Bounding box recalculée après recentrage (pour vérif dans la console)
-            const box = new THREE.Box3().setFromObject(mapMesh);
-            console.log('Map bounding box (recentrée):', box.min, box.max);
-
             mapReady = true;
         }, undefined, function (error) {
             console.error('Erreur chargement map GLB:', error);
-            document.getElementById('loading-subtitle').innerText = "Erreur : Vérifiez que 'icy_heights_common_map.glb' est bien à la racine.";
         });
 
-        loader.load('crash_test_dummy.glb', function (gltf) {
-            playerMesh = gltf.scene;
-            playerMesh.scale.set(1, 1, 1);
-            playerMesh.traverse((node) => {
-                if (node.isMesh) {
-                    node.castShadow = true;
-                    node.receiveShadow = true;
-                    if (node.material) {
-                        node.material.roughness = 0.4;
-                        node.material.metalness = 0.1;
-                    }
-                }
-            });
-            scene.add(playerMesh);
-
-            for (let i = 0; i < 3; i++) {
-                const botClone = gltf.scene.clone();
-                botClone.scale.set(1, 1, 1);
-                scene.add(botClone);
-                bots.push({
-                    mesh: botClone,
-                    x: (i - 1) * 2,
-                    y: 0,
-                    z: - (i * 10),
-                    speed: 0.06 + Math.random() * 0.02
-                });
-            }
-
-            document.getElementById('loading-subtitle').innerText = "Modèle chargé ! Choisis un mode de jeu :";
-            document.getElementById('mp-choice').style.display = 'flex';
-        }, undefined, function (error) {
-            console.error('Erreur chargement GLB:', error);
-            document.getElementById('loading-subtitle').innerText = "Erreur : Vérifiez que 'crash_test_dummy.glb' est bien à la racine.";
-        });
+        function shootLaser() {
+            const bulletGeo = new THREE.SphereGeometry(0.2, 8, 8);
+            const bulletMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+            const dirX = Math.sin(player.facingAngle);
+            const dirZ = Math.cos(player.facingAngle);
+            bullet.position.set(player.x + dirX * 0.6, player.y + 1.2, player.z + dirZ * 0.6);
+            scene.add(bullet);
+            bullets.push({ mesh: bullet, vx: dirX * 0.8, vz: dirZ * 0.8, life: 0 });
+        }
 
         // --- CONTRÔLES CLAVIER & TACTILE ---
         const keys = { forward: false, backward: false, left: false, right: false };
         let joystickMove = { x: 0, y: 0 };
 
-        // --- CAMÉRA ORBITALE (on peut tourner la vue autour du joueur) ---
-        // Valeurs calibrées pour reproduire exactement l'angle de la caméra
-        // d'origine (offset x:0, y:+5, z:+8 par rapport au joueur) à yaw=0.
         let cameraYaw = 0;
-        let cameraPitch = 0.5586; // radians
+        let cameraPitch = 0.5586;
         const CAMERA_DISTANCE = 9.433;
         const CAMERA_MIN_PITCH = 0.15;
         const CAMERA_MAX_PITCH = 1.4;
@@ -443,7 +496,6 @@
         });
         window.addEventListener('mouseup', () => { isDraggingCamera = false; });
 
-        // Tactile : un doigt qui n'est pas celui du joystick fait tourner la caméra
         let cameraTouchId = null;
         let lastCamTouchX = 0, lastCamTouchY = 0;
 
@@ -560,7 +612,6 @@
             document.getElementById('menu-screen').style.opacity = '0';
             setTimeout(() => {
                 document.getElementById('menu-screen').style.display = 'none';
-                // Tout le monde repart du vrai spawn au lancement de la partie
                 player.x = COURSE_SPAWN.x;
                 player.y = COURSE_SPAWN.y;
                 player.z = COURSE_SPAWN.z;
@@ -573,14 +624,12 @@
 
         document.getElementById('start-btn').addEventListener('click', startGame);
 
-        // ==================================================================
-        // --- MULTIJOUEUR P2P (WebRTC via PeerJS, aucun serveur perso requis) ---
-        // ==================================================================
-        let peer = null;                 // Instance PeerJS locale
-        let isHost = false;               // true si on a créé le salon
-        const hostConnections = new Map(); // (hôte uniquement) peerId -> DataConnection
-        let hostConnection = null;        // (invité uniquement) DataConnection vers l'hôte
-        const remotePlayers = new Map();   // peerId -> { mesh, x, y, z, rotY }
+        // --- MULTIJOUEUR P2P ---
+        let peer = null;
+        let isHost = false;
+        const hostConnections = new Map();
+        let hostConnection = null;
+        const remotePlayers = new Map();
         let myPeerId = null;
 
         const mpChoiceEl = document.getElementById('mp-choice');
@@ -598,11 +647,10 @@
         }
 
         function updateLobbyCount() {
-            const count = hostConnections.size + 1; // +1 = l'hôte lui-même
+            const count = hostConnections.size + 1;
             lobbyCountText.innerText = `Joueurs dans le salon : ${count}`;
         }
 
-        // Crée ou récupère le mesh d'un joueur distant pour l'afficher dans la scène
         function getOrCreateRemoteMesh(id) {
             if (remotePlayers.has(id)) return remotePlayers.get(id);
             let mesh = null;
@@ -621,12 +669,10 @@
             remotePlayers.delete(id);
         }
 
-        // Traite un message reçu (position d'un autre joueur, ou signal de départ)
         function handleIncomingData(data, fromId) {
             if (data.type === 'pos') {
                 const entry = getOrCreateRemoteMesh(data.id);
                 entry.x = data.x; entry.y = data.y; entry.z = data.z; entry.rotY = data.rotY;
-                // Si on est l'hôte, on relaie cette position à tous les autres invités
                 if (isHost) {
                     hostConnections.forEach((conn, id) => {
                         if (id !== fromId) conn.send(data);
@@ -644,7 +690,6 @@
             }
         }
 
-        // Génère un code court et facile à taper (évite les caractères ambigus O/0, I/1)
         function generateShortRoomCode() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             let code = '';
@@ -654,7 +699,6 @@
             return code;
         }
 
-        // --- CRÉER UN SALON (hôte) ---
         function createRoom(attemptsLeft) {
             const roomCode = generateShortRoomCode();
             peer = new Peer(roomCode);
@@ -681,7 +725,6 @@
 
             peer.on('error', (err) => {
                 if (err.type === 'unavailable-id' && attemptsLeft > 0) {
-                    // Code déjà pris par quelqu'un d'autre : on réessaie avec un nouveau code
                     peer.destroy();
                     createRoom(attemptsLeft - 1);
                     return;
@@ -703,7 +746,6 @@
             startGame();
         });
 
-        // --- REJOINDRE UN SALON (invité) ---
         document.getElementById('join-room-btn').addEventListener('click', () => {
             mpChoiceEl.style.display = 'none';
             joinFormEl.style.display = 'flex';
@@ -744,7 +786,6 @@
             });
         });
 
-        // Envoie régulièrement notre position aux autres joueurs de la partie
         setInterval(() => {
             if (!gameStarted || !myPeerId) return;
             const msg = { type: 'pos', id: myPeerId, x: player.x, y: player.y, z: player.z, rotY: player.facingAngle };
@@ -757,97 +798,156 @@
 
         // --- BOUCLE DE JEU & PHYSIQUE ---
         function updatePhysics() {
-            if (!gameStarted || !playerMesh) return;
+            if (!gameStarted) return;
 
-            let moveX = joystickMove.x;
-            let moveZ = joystickMove.y;
+            let moveX = 0;
+            let moveZ = 0;
 
-            if (keys.forward) moveZ = -1;
-            if (keys.backward) moveZ = 1;
-            if (keys.left) moveX = -1;
-            if (keys.right) moveX = 1;
+            if (keys.forward) moveZ -= 1;
+            if (keys.backward) moveZ += 1;
+            if (keys.left) moveX -= 1;
+            if (keys.right) moveX += 1;
 
-            // Convertit l'input (avancer/reculer/gauche/droite) en mouvement
-            // relatif à la direction actuelle de la caméra, pour qu'avancer
-            // avance bien dans la direction regardée, même après rotation.
-            const forwardAmount = -moveZ; // +1 = avancer
-            const sinYaw = Math.sin(cameraYaw);
-            const cosYaw = Math.cos(cameraYaw);
+            if (Math.abs(joystickMove.x) > 0.05 || Math.abs(joystickMove.y) > 0.05) {
+                moveX = joystickMove.x;
+                moveZ = joystickMove.y;
+            }
 
-            const worldMoveX = forwardAmount * (-sinYaw) + moveX * cosYaw;
-            const worldMoveZ = forwardAmount * (-cosYaw) + moveX * (-sinYaw);
+            if (Math.abs(moveX) > 0.05 || Math.abs(moveZ) > 0.05) {
+                const inputAngle = Math.atan2(moveX, moveZ);
+                const targetAngle = inputAngle + cameraYaw;
+                let angleDiff = targetAngle - player.facingAngle;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                player.facingAngle += angleDiff * 0.2;
 
-            player.vx = worldMoveX * player.speed + player.dashVx;
-            player.vz = worldMoveZ * player.speed + player.dashVz;
+                const currentSpeed = player.speed * Math.min(1, Math.sqrt(moveX * moveX + moveZ * moveZ));
+                player.x += Math.sin(player.facingAngle) * currentSpeed;
+                player.z += Math.cos(player.facingAngle) * currentSpeed;
+            }
 
-            player.dashVx *= 0.92;
-            player.dashVz *= 0.92;
-            if (Math.abs(player.dashVx) < 0.01) player.dashVx = 0;
-            if (Math.abs(player.dashVz) < 0.01) player.dashVz = 0;
+            player.dashVx *= 0.90;
+            player.dashVz *= 0.90;
+            player.x += player.dashVx;
+            player.z += player.dashVz;
 
-            player.x += player.vx;
-            player.z += player.vz;
-
-            player.vy -= 0.012;
+            player.vy -= 0.012; // Gravité
             player.y += player.vy;
 
-            player.isGrounded = false;
-            platforms.forEach(p => {
+            // Gestion des collisions avec les plateformes de secours
+            let onPlatform = false;
+            for (let i = 0; i < platforms.length; i++) {
+                const p = platforms[i];
                 const b = p.bounds;
-                if (Math.abs(player.x - b.x) < b.w / 2 && Math.abs(player.z - b.z) < b.d / 2) {
-                    if (player.y <= b.y + 0.5 && player.y >= b.y - 0.2 && player.vy <= 0) {
-                        player.y = b.y + 0.5;
+                if (
+                    player.x >= b.x - b.w / 2 && player.x <= b.x + b.w / 2 &&
+                    player.z >= b.z - b.d / 2 && player.z <= b.z + b.d / 2
+                ) {
+                    const surfaceY = b.y + 0.5;
+                    if (player.y <= surfaceY && player.y >= surfaceY - 1.0 && player.vy <= 0) {
+                        player.y = surfaceY;
                         player.vy = 0;
                         player.isGrounded = true;
                         player.hasDashed = false;
-                    }
-                }
-            });
-
-            // Collision avec le mesh de la map GLB (raycast vers le bas)
-            if (mapMesh && player.vy <= 0) {
-                groundRaycaster.set(
-                    new THREE.Vector3(player.x, player.y + 3, player.z),
-                    DOWN_VECTOR
-                );
-                const hits = groundRaycaster.intersectObject(mapMesh, true);
-                if (hits.length > 0) {
-                    const groundY = hits[0].point.y;
-                    if (player.y <= groundY + 0.6) {
-                        player.y = groundY + 0.5;
-                        player.vy = 0;
-                        player.isGrounded = true;
-                        player.hasDashed = false;
+                        onPlatform = true;
                     }
                 }
             }
 
-            // (Ancien système de "mort en tombant" retiré : le joueur peut
-            // maintenant tomber librement sans être téléporté.)
-
-            checkpoints.forEach((cp, idx) => {
-                const dist = Math.hypot(player.x - cp.x, player.z - cp.z);
-                if (dist < 1.5 && player.checkpointIndex <= idx) {
-                    player.checkpointIndex = idx + 1;
-                    document.getElementById('score-hud').innerText = `Checkpoint : ${player.checkpointIndex} / ${checkpoints.length}`;
-                    if (cp.isFinish && !raceFinished) {
-                        raceFinished = true;
-                        document.getElementById('score-hud').innerText = `🏁 Course terminée !`;
+            // Raycaster pour la map GLB
+            if (mapReady && mapMesh) {
+                groundRaycaster.ray.origin.set(player.x, player.y + 2.0, player.z);
+                groundRaycaster.ray.direction.copy(DOWN_VECTOR);
+                const intersects = groundRaycaster.intersectObject(mapMesh, true);
+                if (intersects.length > 0) {
+                    const hit = intersects[0];
+                    const groundY = hit.point.y;
+                    if (player.y <= groundY && player.y >= groundY - 1.5 && player.vy <= 0) {
+                        player.y = groundY;
+                        player.vy = 0;
+                        player.isGrounded = true;
+                        player.hasDashed = false;
+                        onPlatform = true;
                     }
                 }
-            });
-
-            playerMesh.position.set(player.x, player.y, player.z);
-            if (Math.abs(player.vx) > 0.01 || Math.abs(player.vz) > 0.01) {
-                playerMesh.rotation.y = Math.atan2(player.vx, player.vz);
-                player.facingAngle = playerMesh.rotation.y;
             }
 
+            if (!onPlatform && player.y < -30) {
+                // Respawn si chute en dehors de la map
+                player.x = COURSE_SPAWN.x;
+                player.y = COURSE_SPAWN.y;
+                player.z = COURSE_SPAWN.z;
+                player.vy = 0;
+                player.dashVx = 0;
+                player.dashVz = 0;
+            }
+
+            if (playerMesh) {
+                playerMesh.position.set(player.x, player.y, player.z);
+                playerMesh.rotation.y = player.facingAngle;
+            }
+
+            // Mise à jour des bots
+            bots.forEach(bot => {
+                bot.z -= bot.speed;
+                if (bot.mesh) bot.mesh.position.set(bot.x, bot.y, bot.z);
+            });
+
+            // Mise à jour des projectiles / lasers
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.mesh.position.x += b.vx;
+                b.mesh.position.z += b.vz;
+                b.life++;
+                if (b.life > 120) {
+                    scene.remove(b.mesh);
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // Mise à jour des hazards (obstacles tournants)
             hazards.forEach(h => {
                 h.pivot.rotation.y += h.speed;
             });
 
-            // Affiche la position des autres joueurs connectés (multijoueur)
+            // Gestion des checkpoints et de l'arrivée
+            if (!raceFinished && player.checkpointIndex < COURSE_CHECKPOINTS.length) {
+                const cp = COURSE_CHECKPOINTS[player.checkpointIndex];
+                const distToCp = Math.sqrt((player.x - cp.x) ** 2 + (player.z - cp.z) ** 2);
+                if (distToCp < 3.0) {
+                    player.checkpointIndex++;
+                    document.getElementById('score-hud').innerText = `Checkpoint : ${player.checkpointIndex + 1} / 5`;
+                }
+            } else if (!raceFinished && player.checkpointIndex === COURSE_CHECKPOINTS.length) {
+                const fin = COURSE_FINISH;
+                const distToFin = Math.sqrt((player.x - fin.x) ** 2 + (player.z - fin.z) ** 2);
+                if (distToFin < 3.0) {
+                    raceFinished = true;
+                    document.getElementById('score-hud').innerText = "VICTOIRE ! 🏆";
+                }
+            }
+        }
+
+        // --- BOUCLE DE RENDU ---
+        function animate() {
+            requestAnimationFrame(animate);
+            updatePhysics();
+
+            // Positionnement fluide de la caméra orbitale
+            if (playerMesh) {
+                const targetX = player.x;
+                const targetY = player.y + 1.2;
+                const targetZ = player.z;
+
+                const camOffsetX = Math.sin(cameraYaw) * Math.cos(cameraPitch) * CAMERA_DISTANCE;
+                const camOffsetY = Math.sin(cameraPitch) * CAMERA_DISTANCE;
+                const camOffsetZ = Math.cos(cameraYaw) * Math.cos(cameraPitch) * CAMERA_DISTANCE;
+
+                camera.position.set(targetX + camOffsetX, targetY + camOffsetY, targetZ + camOffsetZ);
+                camera.lookAt(targetX, targetY, targetZ);
+            }
+
+            // Mise à jour des positions des joueurs distants
             remotePlayers.forEach(entry => {
                 if (entry.mesh) {
                     entry.mesh.position.set(entry.x, entry.y, entry.z);
@@ -855,34 +955,9 @@
                 }
             });
 
-            bots.forEach(bot => {
-                bot.z -= bot.speed;
-                bot.mesh.position.set(bot.x, bot.y, bot.z);
-                if (bot.z < -145) bot.z = 5;
-            });
-
-            for (let i = bullets.length - 1; i >= 0; i--) {
-                bullets[i].mesh.position.x += bullets[i].vx;
-                bullets[i].mesh.position.z += bullets[i].vz;
-                bullets[i].life++;
-                if (bullets[i].life > 200) {
-                    scene.remove(bullets[i].mesh);
-                    bullets.splice(i, 1);
-                }
-            }
-
-            const camX = player.x + Math.sin(cameraYaw) * Math.cos(cameraPitch) * CAMERA_DISTANCE;
-            const camZ = player.z + Math.cos(cameraYaw) * Math.cos(cameraPitch) * CAMERA_DISTANCE;
-            const camY = player.y + Math.sin(cameraPitch) * CAMERA_DISTANCE;
-            camera.position.set(camX, camY, camZ);
-            camera.lookAt(player.x, player.y + 1, player.z);
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            updatePhysics();
             renderer.render(scene, camera);
         }
+
         animate();
 
         window.addEventListener('resize', () => {
