@@ -272,14 +272,14 @@
             hazards.push({ pivot, speed: 0.04 });
         }
 
-        buildMap();
+        // buildMap(); // Plateformes de secours désactivées : on utilise uniquement le vrai parcours sur la map
         buildRealCourse();
 
         // --- CHARGEMENT DU MODÈLE GLB JOUEUR & BOTS ---
         const loader = new THREE.GLTFLoader();
         let playerMesh = null;
         const player = {
-            x: COURSE_SPAWN.x, y: COURSE_SPAWN.y + 1, z: COURSE_SPAWN.z,
+            x: COURSE_SPAWN.x, y: COURSE_SPAWN.y, z: COURSE_SPAWN.z,
             vx: 0, vy: 0, vz: 0,
             dashVx: 0, dashVz: 0,
             facingAngle: 0,
