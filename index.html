@@ -212,15 +212,12 @@
 
         function buildMap() {
             createPlatform(0, -0.5, 0, 10, 1, 15, 0xaaddff);
-            createCheckpoint(0, 0, -10);
             createPlatform(0, -0.5, -20, 8, 1, 20, 0x88ccff);
             createPlatform(0, -0.5, -45, 10, 1, 25, 0x66bbff);
             createRotator(0, 0, -45);
-            createCheckpoint(0, 0, -60);
             createPlatform(0, -0.5, -75, 4, 1, 20, 0x7799ff);
             createPlatform(-3, -0.5, -95, 4, 1, 15, 0x7799ff);
             createPlatform(3, -0.5, -115, 4, 1, 15, 0x7799ff);
-            createCheckpoint(3, 0, -125);
             createPlatform(0, -0.5, -145, 12, 1, 20, 0x00aa66);
         }
 
@@ -234,14 +231,32 @@
             platforms.push({ mesh, bounds: { x, z, w, d, y } });
         }
 
-        function createCheckpoint(x, y, z) {
+        function createCheckpoint(x, y, z, isFinish = false) {
             const ringGeo = new THREE.TorusGeometry(1.5, 0.15, 16, 32);
-            const ringMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00aa88 });
+            const color = isFinish ? 0xffcc00 : 0x00ffcc;
+            const emissive = isFinish ? 0xaa8800 : 0x00aa88;
+            const ringMat = new THREE.MeshStandardMaterial({ color: color, emissive: emissive });
             const ring = new THREE.Mesh(ringGeo, ringMat);
             ring.position.set(x, y + 1.5, z);
             ring.rotation.y = Math.PI / 2;
             scene.add(ring);
-            checkpoints.push({ x, z, mesh: ring });
+            checkpoints.push({ x, z, mesh: ring, isFinish });
+        }
+
+        // --- VRAI PARCOURS (coordonnées relevées sur la map avec les outils admin G/H/J) ---
+        const COURSE_SPAWN = { x: -29.27, y: -9.26, z: 302.18 };
+        const COURSE_CHECKPOINTS = [
+            { x: -24.15, y: -16.83, z: 144.98 },
+            { x: 4.18, y: -2.52, z: 80.04 },
+            { x: 6.77, y: -2.48, z: -5.09 },
+            { x: 5.98, y: -64.26, z: -227.77 }
+        ];
+        const COURSE_FINISH = { x: 5.81, y: -58.53, z: -301.97 };
+        let raceFinished = false;
+
+        function buildRealCourse() {
+            COURSE_CHECKPOINTS.forEach(cp => createCheckpoint(cp.x, cp.y, cp.z));
+            createCheckpoint(COURSE_FINISH.x, COURSE_FINISH.y, COURSE_FINISH.z, true);
         }
 
         function createRotator(x, y, z) {
@@ -258,12 +273,13 @@
         }
 
         buildMap();
+        buildRealCourse();
 
         // --- CHARGEMENT DU MODÈLE GLB JOUEUR & BOTS ---
         const loader = new THREE.GLTFLoader();
         let playerMesh = null;
         const player = {
-            x: 0, y: 5, z: 5, // valeur par défaut tant que la map GLB n'est pas chargée
+            x: COURSE_SPAWN.x, y: COURSE_SPAWN.y + 1, z: COURSE_SPAWN.z,
             vx: 0, vy: 0, vz: 0,
             dashVx: 0, dashVz: 0,
             facingAngle: 0,
@@ -631,6 +647,10 @@
                 if (dist < 1.5 && player.checkpointIndex <= idx) {
                     player.checkpointIndex = idx + 1;
                     document.getElementById('score-hud').innerText = `Checkpoint : ${player.checkpointIndex} / ${checkpoints.length}`;
+                    if (cp.isFinish && !raceFinished) {
+                        raceFinished = true;
+                        document.getElementById('score-hud').innerText = `🏁 Course terminée !`;
+                    }
                 }
             });
 
