@@ -274,6 +274,11 @@
         const bots = [];
         const bullets = [];
 
+        // Raycaster utilisé chaque frame pour détecter le sol de la map GLB
+        // (les plateformes codées en dur utilisent leur propre système de bounds)
+        const groundRaycaster = new THREE.Raycaster();
+        const DOWN_VECTOR = new THREE.Vector3(0, -1, 0);
+
         function shootLaser() {
             const bulletGeo = new THREE.SphereGeometry(0.2, 8, 8);
             const bulletMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
@@ -565,13 +570,26 @@
                 }
             });
 
-            if (player.y < -10) {
-                const cp = checkpoints[player.checkpointIndex > 0 ? player.checkpointIndex - 1 : 0] || { x: 0, z: 5 };
-                player.x = cp.x;
-                player.z = cp.z + 2;
-                player.y = 2;
-                player.vy = 0;
+            // Collision avec le mesh de la map GLB (raycast vers le bas)
+            if (mapMesh && player.vy <= 0) {
+                groundRaycaster.set(
+                    new THREE.Vector3(player.x, player.y + 3, player.z),
+                    DOWN_VECTOR
+                );
+                const hits = groundRaycaster.intersectObject(mapMesh, true);
+                if (hits.length > 0) {
+                    const groundY = hits[0].point.y;
+                    if (player.y <= groundY + 0.6) {
+                        player.y = groundY + 0.5;
+                        player.vy = 0;
+                        player.isGrounded = true;
+                        player.hasDashed = false;
+                    }
+                }
             }
+
+            // (Ancien système de "mort en tombant" retiré : le joueur peut
+            // maintenant tomber librement sans être téléporté.)
 
             checkpoints.forEach((cp, idx) => {
                 const dist = Math.hypot(player.x - cp.x, player.z - cp.z);
