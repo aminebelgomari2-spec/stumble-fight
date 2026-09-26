@@ -505,6 +505,16 @@
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
             if (e.code === 'Space') handleJumpOrDash();
             if (e.code === 'KeyF') shootLaser();
+            
+            // Touche G : Copie les coordonnées du joueur dans le presse-papier
+            if (e.code === 'KeyG') {
+                const coordText = `{ x: ${player.x.toFixed(2)}, y: ${player.y.toFixed(2)}, z: ${player.z.toFixed(2)} }`;
+                navigator.clipboard.writeText(coordText).then(() => {
+                    console.log("Coordonnées copiées :", coordText);
+                }).catch(err => {
+                    console.error("Erreur lors de la copie des coordonnées :", err);
+                });
+            }
         });
 
         window.addEventListener('keyup', (e) => {
