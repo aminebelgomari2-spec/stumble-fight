@@ -187,7 +187,7 @@
         <!-- Formulaire pour entrer le code du salon à rejoindre -->
         <div id="join-form" style="display:none; flex-direction:column; align-items:center; gap:10px;">
             <p class="subtitle" style="margin-bottom:5px;">Entre le code du salon :</p>
-            <input type="text" id="room-code-input" placeholder="Code du salon" style="padding:12px 18px; font-size:1.1rem; border-radius:30px; border:2px solid rgba(255,255,255,0.3); background:rgba(0,0,0,0.4); color:white; text-align:center; width:220px;">
+            <input type="text" id="room-code-input" placeholder="Code du salon" maxlength="8" style="padding:12px 18px; font-size:1.1rem; border-radius:30px; border:2px solid rgba(255,255,255,0.3); background:rgba(0,0,0,0.4); color:white; text-align:center; width:220px; text-transform:uppercase; letter-spacing:3px;">
             <button class="btn" id="confirm-join-btn">REJOINDRE</button>
         </div>
 
@@ -644,13 +644,20 @@
             }
         }
 
-        // --- CRÉER UN SALON (hôte) ---
-        document.getElementById('create-room-btn').addEventListener('click', () => {
-            isHost = true;
-            peer = new Peer();
+        // Génère un code court et facile à taper (évite les caractères ambigus O/0, I/1)
+        function generateShortRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 5; i++) {
+                code += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return code;
+        }
 
-            lobbyCodeText.innerText = 'Création du salon...';
-            showLobby();
+        // --- CRÉER UN SALON (hôte) ---
+        function createRoom(attemptsLeft) {
+            const roomCode = generateShortRoomCode();
+            peer = new Peer(roomCode);
 
             peer.on('open', (id) => {
                 myPeerId = id;
@@ -673,9 +680,22 @@
             });
 
             peer.on('error', (err) => {
+                if (err.type === 'unavailable-id' && attemptsLeft > 0) {
+                    // Code déjà pris par quelqu'un d'autre : on réessaie avec un nouveau code
+                    peer.destroy();
+                    createRoom(attemptsLeft - 1);
+                    return;
+                }
                 console.error('Erreur PeerJS (hôte):', err);
                 lobbyCodeText.innerText = 'Erreur de connexion, réessaie.';
             });
+        }
+
+        document.getElementById('create-room-btn').addEventListener('click', () => {
+            isHost = true;
+            lobbyCodeText.innerText = 'Création du salon...';
+            showLobby();
+            createRoom(5);
         });
 
         launchRaceBtn.addEventListener('click', () => {
@@ -690,7 +710,7 @@
         });
 
         document.getElementById('confirm-join-btn').addEventListener('click', () => {
-            const code = document.getElementById('room-code-input').value.trim();
+            const code = document.getElementById('room-code-input').value.trim().toUpperCase();
             if (!code) return;
 
             isHost = false;
