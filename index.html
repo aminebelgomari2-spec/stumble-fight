@@ -308,10 +308,11 @@
             mapMesh.position.z -= rawCenter.z;
             mapMesh.position.y -= rawTopY;
 
-            // Décalage supplémentaire pour pousser la map vers la gauche.
-            // Augmente la valeur négative pour aller encore plus à gauche.
+            // Décalage supplémentaire pour pousser la map vers la gauche et un peu vers le haut.
             const MAP_EXTRA_OFFSET_X = -25;
+            const MAP_EXTRA_OFFSET_Y = 1.5;
             mapMesh.position.x += MAP_EXTRA_OFFSET_X;
+            mapMesh.position.y += MAP_EXTRA_OFFSET_Y;
 
             scene.add(mapMesh);
 
@@ -528,9 +529,19 @@
             if (keys.left) moveX = -1;
             if (keys.right) moveX = 1;
 
-            player.vx = moveX * player.speed;
+            // Convertit l'input (avancer/reculer/gauche/droite) en mouvement
+            // relatif à la direction actuelle de la caméra, pour qu'avancer
+            // avance bien dans la direction regardée, même après rotation.
+            const forwardAmount = -moveZ; // +1 = avancer
+            const sinYaw = Math.sin(cameraYaw);
+            const cosYaw = Math.cos(cameraYaw);
+
+            const worldMoveX = forwardAmount * (-sinYaw) + moveX * cosYaw;
+            const worldMoveZ = forwardAmount * (-cosYaw) + moveX * (-sinYaw);
+
+            player.vx = worldMoveX * player.speed;
             if (Math.abs(player.vz) < 0.15) {
-                player.vz = moveZ * player.speed;
+                player.vz = worldMoveZ * player.speed;
             } else {
                 player.vz *= 0.92;
             }
