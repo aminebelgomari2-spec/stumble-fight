@@ -148,6 +148,8 @@
     <!-- Three.js et GLTFLoader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <!-- PeerJS : WebRTC peer-to-peer avec mise en relation gratuite (aucun serveur perso requis) -->
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
 
@@ -172,8 +174,30 @@
 
     <div id="menu-screen">
         <h1>STUMBLE FIGHT</h1>
-        <p class="subtitle">Chargement de votre Crash Test Dummy 3D...</p>
-        <button class="btn" id="start-btn" disabled>CHARGEMENT...</button>
+        <p class="subtitle" id="loading-subtitle">Chargement de votre Crash Test Dummy 3D...</p>
+
+        <div id="mp-choice" style="display:none; flex-direction:column; align-items:center; gap:12px;">
+            <div style="display:flex; gap:15px;">
+                <button class="btn" id="create-room-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe); font-size:1.1rem; padding:12px 28px;">CRÉER UN SALON</button>
+                <button class="btn" id="join-room-btn" style="background:linear-gradient(135deg,#a18cd1,#fbc2eb); font-size:1.1rem; padding:12px 28px;">REJOINDRE UN SALON</button>
+            </div>
+            <button class="btn" id="start-btn" style="margin-top:5px;">JOUER EN SOLO</button>
+        </div>
+
+        <!-- Formulaire pour entrer le code du salon à rejoindre -->
+        <div id="join-form" style="display:none; flex-direction:column; align-items:center; gap:10px;">
+            <p class="subtitle" style="margin-bottom:5px;">Entre le code du salon :</p>
+            <input type="text" id="room-code-input" placeholder="Code du salon" style="padding:12px 18px; font-size:1.1rem; border-radius:30px; border:2px solid rgba(255,255,255,0.3); background:rgba(0,0,0,0.4); color:white; text-align:center; width:220px;">
+            <button class="btn" id="confirm-join-btn">REJOINDRE</button>
+        </div>
+
+        <!-- Salle d'attente (hôte et invités) -->
+        <div id="lobby" style="display:none; flex-direction:column; align-items:center; gap:10px;">
+            <p class="subtitle" id="lobby-code-text"></p>
+            <p class="subtitle" id="lobby-count-text">Joueurs dans le salon : 1</p>
+            <button class="btn" id="launch-race-btn" style="display:none;">LANCER LA PARTIE</button>
+            <p class="subtitle" id="lobby-wait-text" style="display:none;">En attente que l'hôte lance la partie...</p>
+        </div>
     </div>
 
     <script>
@@ -297,29 +321,6 @@
         const groundRaycaster = new THREE.Raycaster();
         const DOWN_VECTOR = new THREE.Vector3(0, -1, 0);
 
-        // --- OUTILS ADMIN PROVISOIRES (à retirer plus tard) ---
-        // G = copier les coordonnées de spawn, H = d'un checkpoint, J = de la ligne d'arrivée
-        function copyCoordsToClipboard(label) {
-            const text = `${label}: { x: ${player.x.toFixed(2)}, y: ${player.y.toFixed(2)}, z: ${player.z.toFixed(2)} }`;
-            const statusHud = document.getElementById('status-hud');
-            const restoreText = statusHud ? statusHud.innerText : null;
-
-            navigator.clipboard.writeText(text).then(() => {
-                console.log('Copié dans le presse-papier :', text);
-                if (statusHud) {
-                    statusHud.innerText = `Copié -> ${text}`;
-                    setTimeout(() => { statusHud.innerText = restoreText; }, 2500);
-                }
-            }).catch((err) => {
-                console.error('Erreur copie presse-papier:', err);
-                console.log(text);
-                if (statusHud) {
-                    statusHud.innerText = `Copie échouée, voir console`;
-                    setTimeout(() => { statusHud.innerText = restoreText; }, 2500);
-                }
-            });
-        }
-
         function shootLaser() {
             const bulletGeo = new THREE.SphereGeometry(0.2, 8, 8);
             const bulletMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
@@ -371,7 +372,7 @@
             mapReady = true;
         }, undefined, function (error) {
             console.error('Erreur chargement map GLB:', error);
-            document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'icy_heights_common_map.glb' est bien à la racine.";
+            document.getElementById('loading-subtitle').innerText = "Erreur : Vérifiez que 'icy_heights_common_map.glb' est bien à la racine.";
         });
 
         loader.load('crash_test_dummy.glb', function (gltf) {
@@ -402,13 +403,11 @@
                 });
             }
 
-            const startBtn = document.getElementById('start-btn');
-            startBtn.innerText = "JOUER";
-            startBtn.disabled = false;
-            document.querySelector('p.subtitle').innerText = "Modèle chargé ! Prêt à jouer sur Icy Heights.";
+            document.getElementById('loading-subtitle').innerText = "Modèle chargé ! Choisis un mode de jeu :";
+            document.getElementById('mp-choice').style.display = 'flex';
         }, undefined, function (error) {
             console.error('Erreur chargement GLB:', error);
-            document.querySelector('p.subtitle').innerText = "Erreur : Vérifiez que 'crash_test_dummy.glb' est bien à la racine.";
+            document.getElementById('loading-subtitle').innerText = "Erreur : Vérifiez que 'crash_test_dummy.glb' est bien à la racine.";
         });
 
         // --- CONTRÔLES CLAVIER & TACTILE ---
@@ -484,9 +483,6 @@
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
             if (e.code === 'Space') handleJumpOrDash();
             if (e.code === 'KeyF') shootLaser();
-            if (e.code === 'KeyG') copyCoordsToClipboard('SPAWN');
-            if (e.code === 'KeyH') copyCoordsToClipboard('CHECKPOINT');
-            if (e.code === 'KeyJ') copyCoordsToClipboard('FINISH');
         });
 
         window.addEventListener('keyup', (e) => {
@@ -558,14 +554,186 @@
         document.getElementById('btn-shoot').addEventListener('click', shootLaser);
 
         let gameStarted = false;
-        document.getElementById('start-btn').addEventListener('click', () => {
+
+        function startGame() {
             if (!playerMesh) return;
             document.getElementById('menu-screen').style.opacity = '0';
             setTimeout(() => {
                 document.getElementById('menu-screen').style.display = 'none';
+                // Tout le monde repart du vrai spawn au lancement de la partie
+                player.x = COURSE_SPAWN.x;
+                player.y = COURSE_SPAWN.y;
+                player.z = COURSE_SPAWN.z;
+                player.vx = 0; player.vy = 0; player.vz = 0;
+                player.dashVx = 0; player.dashVz = 0;
+                player.checkpointIndex = 0;
                 gameStarted = true;
             }, 300);
+        }
+
+        document.getElementById('start-btn').addEventListener('click', startGame);
+
+        // ==================================================================
+        // --- MULTIJOUEUR P2P (WebRTC via PeerJS, aucun serveur perso requis) ---
+        // ==================================================================
+        let peer = null;                 // Instance PeerJS locale
+        let isHost = false;               // true si on a créé le salon
+        const hostConnections = new Map(); // (hôte uniquement) peerId -> DataConnection
+        let hostConnection = null;        // (invité uniquement) DataConnection vers l'hôte
+        const remotePlayers = new Map();   // peerId -> { mesh, x, y, z, rotY }
+        let myPeerId = null;
+
+        const mpChoiceEl = document.getElementById('mp-choice');
+        const joinFormEl = document.getElementById('join-form');
+        const lobbyEl = document.getElementById('lobby');
+        const lobbyCodeText = document.getElementById('lobby-code-text');
+        const lobbyCountText = document.getElementById('lobby-count-text');
+        const launchRaceBtn = document.getElementById('launch-race-btn');
+        const lobbyWaitText = document.getElementById('lobby-wait-text');
+
+        function showLobby() {
+            mpChoiceEl.style.display = 'none';
+            joinFormEl.style.display = 'none';
+            lobbyEl.style.display = 'flex';
+        }
+
+        function updateLobbyCount() {
+            const count = hostConnections.size + 1; // +1 = l'hôte lui-même
+            lobbyCountText.innerText = `Joueurs dans le salon : ${count}`;
+        }
+
+        // Crée ou récupère le mesh d'un joueur distant pour l'afficher dans la scène
+        function getOrCreateRemoteMesh(id) {
+            if (remotePlayers.has(id)) return remotePlayers.get(id);
+            let mesh = null;
+            if (playerMesh) {
+                mesh = playerMesh.clone();
+                scene.add(mesh);
+            }
+            const entry = { mesh, x: COURSE_SPAWN.x, y: COURSE_SPAWN.y, z: COURSE_SPAWN.z, rotY: 0 };
+            remotePlayers.set(id, entry);
+            return entry;
+        }
+
+        function removeRemotePlayer(id) {
+            const entry = remotePlayers.get(id);
+            if (entry && entry.mesh) scene.remove(entry.mesh);
+            remotePlayers.delete(id);
+        }
+
+        // Traite un message reçu (position d'un autre joueur, ou signal de départ)
+        function handleIncomingData(data, fromId) {
+            if (data.type === 'pos') {
+                const entry = getOrCreateRemoteMesh(data.id);
+                entry.x = data.x; entry.y = data.y; entry.z = data.z; entry.rotY = data.rotY;
+                // Si on est l'hôte, on relaie cette position à tous les autres invités
+                if (isHost) {
+                    hostConnections.forEach((conn, id) => {
+                        if (id !== fromId) conn.send(data);
+                    });
+                }
+            } else if (data.type === 'start') {
+                startGame();
+            } else if (data.type === 'leave') {
+                removeRemotePlayer(data.id);
+                if (isHost) {
+                    hostConnections.forEach((conn, id) => {
+                        if (id !== fromId) conn.send(data);
+                    });
+                }
+            }
+        }
+
+        // --- CRÉER UN SALON (hôte) ---
+        document.getElementById('create-room-btn').addEventListener('click', () => {
+            isHost = true;
+            peer = new Peer();
+
+            lobbyCodeText.innerText = 'Création du salon...';
+            showLobby();
+
+            peer.on('open', (id) => {
+                myPeerId = id;
+                lobbyCodeText.innerText = `Code du salon : ${id}`;
+                launchRaceBtn.style.display = 'inline-block';
+                updateLobbyCount();
+            });
+
+            peer.on('connection', (conn) => {
+                hostConnections.set(conn.peer, conn);
+                conn.on('open', () => {
+                    updateLobbyCount();
+                });
+                conn.on('data', (data) => handleIncomingData(data, conn.peer));
+                conn.on('close', () => {
+                    hostConnections.delete(conn.peer);
+                    removeRemotePlayer(conn.peer);
+                    updateLobbyCount();
+                });
+            });
+
+            peer.on('error', (err) => {
+                console.error('Erreur PeerJS (hôte):', err);
+                lobbyCodeText.innerText = 'Erreur de connexion, réessaie.';
+            });
         });
+
+        launchRaceBtn.addEventListener('click', () => {
+            hostConnections.forEach((conn) => conn.send({ type: 'start' }));
+            startGame();
+        });
+
+        // --- REJOINDRE UN SALON (invité) ---
+        document.getElementById('join-room-btn').addEventListener('click', () => {
+            mpChoiceEl.style.display = 'none';
+            joinFormEl.style.display = 'flex';
+        });
+
+        document.getElementById('confirm-join-btn').addEventListener('click', () => {
+            const code = document.getElementById('room-code-input').value.trim();
+            if (!code) return;
+
+            isHost = false;
+            peer = new Peer();
+
+            lobbyCodeText.innerText = `Connexion au salon ${code}...`;
+            lobbyWaitText.style.display = 'block';
+            launchRaceBtn.style.display = 'none';
+            showLobby();
+
+            peer.on('open', (id) => {
+                myPeerId = id;
+                hostConnection = peer.connect(code);
+
+                hostConnection.on('open', () => {
+                    lobbyCodeText.innerText = `Connecté au salon ${code}`;
+                });
+                hostConnection.on('data', (data) => handleIncomingData(data, code));
+                hostConnection.on('close', () => {
+                    lobbyCodeText.innerText = 'Connexion à l\'hôte perdue.';
+                });
+                hostConnection.on('error', (err) => {
+                    console.error('Erreur de connexion:', err);
+                    lobbyCodeText.innerText = 'Impossible de rejoindre ce salon.';
+                });
+            });
+
+            peer.on('error', (err) => {
+                console.error('Erreur PeerJS (invité):', err);
+                lobbyCodeText.innerText = 'Erreur de connexion, réessaie.';
+            });
+        });
+
+        // Envoie régulièrement notre position aux autres joueurs de la partie
+        setInterval(() => {
+            if (!gameStarted || !myPeerId) return;
+            const msg = { type: 'pos', id: myPeerId, x: player.x, y: player.y, z: player.z, rotY: player.facingAngle };
+            if (isHost) {
+                hostConnections.forEach((conn) => conn.send(msg));
+            } else if (hostConnection && hostConnection.open) {
+                hostConnection.send(msg);
+            }
+        }, 100);
 
         // --- BOUCLE DE JEU & PHYSIQUE ---
         function updatePhysics() {
@@ -657,6 +825,14 @@
 
             hazards.forEach(h => {
                 h.pivot.rotation.y += h.speed;
+            });
+
+            // Affiche la position des autres joueurs connectés (multijoueur)
+            remotePlayers.forEach(entry => {
+                if (entry.mesh) {
+                    entry.mesh.position.set(entry.x, entry.y, entry.z);
+                    entry.mesh.rotation.y = entry.rotY;
+                }
             });
 
             bots.forEach(bot => {
