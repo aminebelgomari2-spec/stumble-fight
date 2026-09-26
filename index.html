@@ -368,11 +368,6 @@
             const box = new THREE.Box3().setFromObject(mapMesh);
             console.log('Map bounding box (recentrée):', box.min, box.max);
 
-            // On spawn au centre (X/Z) de la map, juste au-dessus du point le plus haut (maintenant proche de y=0)
-            player.x = 0;
-            player.z = 0;
-            player.y = 3; // marge de sécurité pour retomber sur le sommet de la map
-
             mapReady = true;
         }, undefined, function (error) {
             console.error('Erreur chargement map GLB:', error);
